@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual Lab</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #101318;
+      color: #f1f5f9;
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      padding: 18px;
+      background: #191e27;
+      border-bottom: 1px solid #343b47;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    header p {
+      color: #aab5c5;
+      margin-bottom: 0;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: auto;
+      padding: 16px;
+    }
+
+    .panel {
+      background: #191e27;
+      border: 1px solid #343b47;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-top: 0;
+    }
+
+    .tools {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    button {
+      border: 1px solid #465265;
+      border-radius: 9px;
+      background: #252d39;
+      color: white;
+      padding: 12px 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:active {
+      background: #40516b;
+    }
+
+    .icon {
+      display: block;
+      font-size: 25px;
+      margin-bottom: 6px;
+    }
+
+    #viewer {
+      width: 100%;
+      height: 340px;
+      background: #080b10;
+      border-radius: 9px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #viewer canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: #c5cedb;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 11px;
+      border-radius: 7px;
+      border: 1px solid #465265;
+      background: #0e1219;
+      color: white;
+      font-size: 16px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .actions button {
+      flex: 1;
+    }
+
+    #status {
+      color: #b8c5d6;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 380px) {
+      #viewer {
+        height: 280px;
+      }
+
+      button {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Virtual Lab</h1>
+    <p>Interactive 3D Science Laboratory</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Select an Object</h2>
+
+      <div class="tools">
+        <button data-shape="sphere">
+          <span class="icon">🔵</span>Sphere
+        </button>
+
+        <button data-shape="cylinder">
+          <span class="icon">🥫</span>Cylinder
+        </button>
+
+        <button data-shape="cube">
+          <span class="icon">🧊</span>Cube
+        </button>
+
+        <button data-shape="cuboid">
+          <span class="icon">📦</span>Cuboid
+        </button>
+
+        <button data-shape="cone">
+          <span class="icon">🔺</span>Cone
+        </button>
+
+        <button id="caliperButton">
+          <span class="icon">📏</span>Vernier Caliper
+        </button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>3D Laboratory</h2>
+      <div id="viewer"></div>
+
+      <p id="status">Loading 3D laboratory...</p>
+
+      <div class="actions">
+        <button id="resetButton">Reset View</button>
+        <button id="removeButton">Remove Object</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Object Dimensions (mm)</h2>
+
+      <div class="controls">
+        <div>
+          <label for="dimensionA">Radius / Length</label>
+          <input id="dimensionA" type="number"
+                 min="1" max="500" step="1" value="20">
+        </div>
+
+        <div>
+          <label for="dimensionB">Height / Width</label>
+          <input id="dimensionB" type="number"
+                 min="1" max="500" step="1" value="20">
+        </div>
+
+        <div>
+          <label for="dimensionC">Depth</label>
+          <input id="dimensionC" type="number"
+                 min="1" max="500" step="1" value="20">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="updateButton">Update Size</button>
+      </div>
+
+      <p id="measurement">
+        Select a shape to begin.
+      </p>
+    </section>
+  </main>
+
+  <script type="module" src="./script.js"></script>
+</body>
+  </html>
