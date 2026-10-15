@@ -4,6 +4,7 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/
 
 const viewer = document.getElementById('viewer');
 const status = document.getElementById('status');
+alert("JavaScript is running");
 const measurement = document.getElementById('measurement');
 
 const inputA = document.getElementById('dimensionA');
