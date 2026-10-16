@@ -1,329 +1,329 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
 
-const viewer = document.getElementById('viewer');
-const status = document.getElementById('status');
-const measurement = document.getElementById('measurement');
-const inputA = document.getElementById('dimensionA');
-const inputB = document.getElementById('dimensionB');
-const inputC = document.getElementById('dimensionC');
+  <title>Vernier Caliper | Science Lab</title>
 
-if (!viewer) {
-  throw new Error('The 3D viewer element was not found.');
-}
-
-// ---------- SCENE ----------
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
-
-const camera = new THREE.PerspectiveCamera(
-  40,
-  viewer.clientWidth / viewer.clientHeight,
-  0.01,
-  10000
-);
-
-camera.position.set(0, 2.5, 8);
-
-const renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  alpha: false
-});
-
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(viewer.clientWidth, viewer.clientHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.25;
-viewer.appendChild(renderer.domElement);
-
-// ---------- LIGHTING ----------
-scene.add(new THREE.AmbientLight(0xffffff, 1.8));
-
-const mainLight = new THREE.DirectionalLight(0xffffff, 3.5);
-mainLight.position.set(4, 6, 5);
-scene.add(mainLight);
-
-const fillLight = new THREE.DirectionalLight(0xb8d5ff, 2);
-fillLight.position.set(-5, 2, -4);
-scene.add(fillLight);
-
-const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
-rimLight.position.set(0, -3, 5);
-scene.add(rimLight);
-
-// ---------- CAMERA CONTROLS ----------
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.045;
-controls.rotateSpeed = 0.45;
-controls.zoomSpeed = 0.55;
-controls.panSpeed = 0.4;
-controls.minDistance = 1;
-controls.maxDistance = 100;
-controls.target.set(0, 0, 0);
-
-// ---------- OBJECTS ----------
-const loader = new GLTFLoader();
-
-let caliper = null;
-let caliperMixer = null;
-let selectedObject = null;
-let selectedObjectType = 'sphere';
-let objectSize = { a: 10, b: 10, c: 10 };
-
-const silverMaterial = new THREE.MeshStandardMaterial({
-  color: 0xc9cdd2,
-  metalness: 0.88,
-  roughness: 0.24
-});
-
-const objectGroup = new THREE.Group();
-scene.add(objectGroup);
-
-// ---------- LOAD VERNIER CALIPER ----------
-loader.load(
-  './verniercaliper.glb',
-  (gltf) => {
-    caliper = gltf.scene;
-
-    // Keep the model's original proportions.
-    caliper.updateMatrixWorld(true);
-
-    const box = new THREE.Box3().setFromObject(caliper);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const largestDimension = Math.max(size.x, size.y, size.z);
-
-    if (largestDimension > 0) {
-      const scale = 5.2 / largestDimension;
-      caliper.scale.setScalar(scale);
+  <style>
+    * {
+      box-sizing: border-box;
     }
 
-    // Recenter the model after scaling.
-    caliper.updateMatrixWorld(true);
-
-    const scaledBox = new THREE.Box3().setFromObject(caliper);
-    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-
-    caliper.position.sub(scaledCenter);
-    scene.add(caliper);
-
-    // Automatically play the model's existing animation.
-    if (gltf.animations && gltf.animations.length > 0) {
-      caliperMixer = new THREE.AnimationMixer(caliper);
-      gltf.animations.forEach((clip) => {
-        caliperMixer.clipAction(clip).play();
-      });
+    body {
+      margin: 0;
+      background: #000;
+      color: #f3f4f6;
+      font-family: Arial, sans-serif;
     }
 
-    // Show the caliper prominently in the viewer.
-    camera.position.set(0, 1.2, 7.2);
-    controls.target.set(0, 0, 0);
-    controls.update();
-
-    // Put a small silver sphere in the scene as the starting object.
-    createObject('sphere');
-
-    if (status) status.textContent = '';
-  },
-  undefined,
-  (error) => {
-    console.error('Could not load Vernier caliper model:', error);
-    if (status) {
-      status.textContent = 'Could not load the caliper model. Check the model filename.';
+    header {
+      padding: 15px 16px;
+      text-align: center;
+      background: #000;
     }
-  }
-);
 
-// ---------- CREATE OBJECTS ----------
-function createObject(type) {
-  if (selectedObject) {
-    objectGroup.remove(selectedObject);
-    selectedObject.traverse((child) => {
-      if (child.isMesh) {
-        child.geometry.dispose();
+    header h1 {
+      margin: 0;
+      font-size: 25px;
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 850px;
+      margin: auto;
+      padding: 10px 14px 28px;
+    }
+
+    .viewer-panel {
+      overflow: hidden;
+      background: #000;
+      border: 1px solid #242424;
+      border-radius: 12px;
+    }
+
+    #viewer {
+      width: 100%;
+      height: min(62vh, 520px);
+      min-height: 340px;
+      background: #000;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #viewer canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .viewer-help {
+      padding: 8px 12px;
+      color: #929292;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .section {
+      padding: 17px 0;
+      border-bottom: 1px solid #202020;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    button {
+      color: #f5f5f5;
+      background: #171717;
+      border: 1px solid #454545;
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:active {
+      background: #303030;
+    }
+
+    .menu-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-align: left;
+      font-size: 15px;
+    }
+
+    #objectMenu {
+      display: none;
+      flex-direction: column;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    #objectMenu.open {
+      display: flex;
+    }
+
+    .object-option {
+      width: 100%;
+      text-align: left;
+      padding: 12px 14px;
+      background: #0d0d0d;
+      border-color: #292929;
+    }
+
+    .object-option.selected {
+      border-color: #c4c4c4;
+      background: #202020;
+    }
+
+    .dimensions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    label {
+      display: block;
+      color: #bcbcbc;
+      font-size: 12px;
+      margin-bottom: 7px;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      padding: 11px 7px;
+      background: #0a0a0a;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .button-row button {
+      flex: 1;
+    }
+
+    .primary {
+      background: #e5e5e5;
+      color: #000;
+      border-color: #e5e5e5;
+      font-weight: 600;
+    }
+
+    .result-box {
+      margin-top: 14px;
+      padding: 13px;
+      border: 1px solid #292929;
+      border-radius: 8px;
+      background: #080808;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+    }
+
+    .muted {
+      color: #999;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    #status {
+      display: none;
+      padding: 10px;
+      color: #d0d0d0;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    #status.visible {
+      display: block;
+    }
+
+    .coming-soon {
+      padding-top: 20px;
+      color: #777;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 420px) {
+      main {
+        padding: 8px 10px 22px;
       }
-    });
-  }
 
-  selectedObjectType = type;
+      #viewer {
+        height: 52vh;
+        min-height: 320px;
+      }
 
-  const a = Math.max(0.1, Number(inputA?.value) || 10);
-  const b = Math.max(0.1, Number(inputB?.value) || 10);
-  const c = Math.max(0.1, Number(inputC?.value) || 10);
+      header h1 {
+        font-size: 23px;
+      }
 
-  objectSize = { a, b, c };
-
-  let geometry;
-
-  // These are deliberately small so they look like objects
-  // being measured, not giant shapes filling the screen.
-  const scale = 0.035;
-
-  switch (type) {
-    case 'sphere':
-      geometry = new THREE.SphereGeometry(a * scale / 2, 40, 32);
-      break;
-
-    case 'cube':
-      geometry = new THREE.BoxGeometry(
-        a * scale,
-        a * scale,
-        a * scale
-      );
-      break;
-
-    case 'cylinder':
-      geometry = new THREE.CylinderGeometry(
-        a * scale / 2,
-        a * scale / 2,
-        b * scale,
-        40
-      );
-      break;
-
-    case 'cuboid':
-      geometry = new THREE.BoxGeometry(
-        a * scale,
-        b * scale,
-        c * scale
-      );
-      break;
-
-    case 'cone':
-      geometry = new THREE.ConeGeometry(
-        a * scale / 2,
-        b * scale,
-        40
-      );
-      break;
-
-    default:
-      geometry = new THREE.SphereGeometry(0.18, 40, 32);
-  }
-
-  selectedObject = new THREE.Mesh(geometry, silverMaterial);
-  selectedObject.position.set(0, 0, 0.35);
-  selectedObject.castShadow = true;
-  selectedObject.receiveShadow = true;
-
-  objectGroup.add(selectedObject);
-  updateMeasurement();
-}
-
-// ---------- OBJECT MENU BUTTONS ----------
-// These IDs must match the buttons in index.html.
-const objectButtons = {
-  sphere: document.getElementById('sphereButton'),
-  cube: document.getElementById('cubeButton'),
-  cylinder: document.getElementById('cylinderButton'),
-  cuboid: document.getElementById('cuboidButton'),
-  cone: document.getElementById('coneButton')
-};
-
-Object.entries(objectButtons).forEach(([type, button]) => {
-  if (button) {
-    button.addEventListener('click', () => createObject(type));
-  }
-});
-
-// ---------- UPDATE DIMENSIONS ----------
-const updateButton = document.getElementById('updateButton');
-
-if (updateButton) {
-  updateButton.addEventListener('click', () => {
-    createObject(selectedObjectType);
-  });
-}
-
-// ---------- RESET VIEW ----------
-const resetButton = document.getElementById('resetButton');
-
-if (resetButton) {
-  resetButton.addEventListener('click', () => {
-    camera.position.set(0, 1.2, 7.2);
-    controls.target.set(0, 0, 0);
-    controls.update();
-  });
-}
-
-// ---------- REMOVE OBJECT ----------
-const removeButton = document.getElementById('removeButton');
-
-if (removeButton) {
-  removeButton.addEventListener('click', () => {
-    if (selectedObject) {
-      objectGroup.remove(selectedObject);
-      selectedObject.geometry.dispose();
-      selectedObject = null;
+      .dimensions {
+        gap: 6px;
+      }
     }
+  </style>
+</head>
 
-    if (measurement) {
-      measurement.textContent = 'Select an object to begin.';
+<body>
+  <header>
+    <h1>Vernier Caliper</h1>
+  </header>
+
+  <main>
+    <section class="viewer-panel">
+      <div id="viewer"></div>
+      <div class="viewer-help">
+        Drag to rotate · Pinch to zoom
+      </div>
+      <div id="status" role="status"></div>
+    </section>
+
+    <section class="section">
+      <button
+        id="otherObjectsButton"
+        class="menu-button"
+        aria-expanded="false"
+        aria-controls="objectMenu"
+      >
+        <span>＋ Other Objects</span>
+        <span id="menuArrow">⌄</span>
+      </button>
+
+      <div id="objectMenu">
+        <button class="object-option" data-shape="sphere">Sphere</button>
+        <button class="object-option" data-shape="cube">Cube</button>
+        <button class="object-option" data-shape="cylinder">Cylinder</button>
+        <button class="object-option" data-shape="cuboid">Cuboid</button>
+        <button class="object-option" data-shape="cone">Cone</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Object Dimensions (mm)</h2>
+
+      <div class="dimensions">
+        <div>
+          <label id="labelA" for="dimensionA">Diameter</label>
+          <input id="dimensionA" type="number"
+                 min="1" max="100" step="1" value="6">
+        </div>
+
+        <div>
+          <label id="labelB" for="dimensionB">Height</label>
+          <input id="dimensionB" type="number"
+                 min="1" max="100" step="1" value="6">
+        </div>
+
+        <div>
+          <label id="labelC" for="dimensionC">Depth</label>
+          <input id="dimensionC" type="number"
+                 min="1" max="100" step="1" value="6">
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="updateButton" class="primary">Update Size</button>
+        <button id="removeButton">Remove Object</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Measurement & Formula</h2>
+
+      <div id="measurement" class="result-box">
+        Select an object to begin.
+      </div>
+
+      <p class="muted">
+        Vernier reading = Main scale reading +
+        (Vernier coincidence × Least count).
+      </p>
+
+      <p class="muted">
+        The displayed object dimensions are simulation values.
+        They are not actual Vernier readings unless the model
+        and measuring scale are calibrated.
+      </p>
+    </section>
+
+    <div class="button-row">
+      <button id="resetButton">Reset View</button>
+    </div>
+
+    <p class="coming-soon">
+      More scientific instruments coming soon.
+    </p>
+  </main>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
     }
-  });
-}
-
-// ---------- VERNIER CALIPER FORMULA ----------
-function updateMeasurement() {
-  if (!measurement) return;
-
-  if (!selectedObject) {
-    measurement.textContent = 'Select an object to begin.';
-    return;
   }
+  </script>
 
-  const a = Math.max(0, Number(inputA?.value) || 0);
-
-  // Simplified teaching example:
-  // Reading = Main scale reading + (Vernier coincidence × least count)
-  const mainScaleReading = Math.floor(a);
-  const vernierCoincidence = 0;
-  const leastCount = 0.01;
-
-  const reading =
-    mainScaleReading + vernierCoincidence * leastCount;
-
-  measurement.textContent =
-    `Object: ${selectedObjectType} | ` +
-    `Simulated reading: ${reading.toFixed(2)} cm | ` +
-    `Formula: Main scale reading + (Vernier coincidence × least count)`;
-}
-
-[inputA, inputB, inputC].forEach((input) => {
-  if (input) {
-    input.addEventListener('change', updateMeasurement);
-  }
-});
-
-// ---------- RESIZE ----------
-window.addEventListener('resize', () => {
-  const width = viewer.clientWidth;
-  const height = viewer.clientHeight;
-
-  if (width === 0 || height === 0) return;
-
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-  renderer.setSize(width, height);
-});
-
-// ---------- ANIMATION LOOP ----------
-const clock = new THREE.Clock();
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const delta = clock.getDelta();
-
-  if (caliperMixer) {
-    caliperMixer.update(delta);
-  }
-
-  controls.update();
-  renderer.render(scene, camera);
-}
-
-animate();
+  <script type="module" src="./script.js?v=10"></script>
+</body>
+</html>
