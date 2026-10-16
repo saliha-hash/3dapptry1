@@ -186,11 +186,11 @@ function loadCaliper() {
       meshNames.push(part.name || '(unnamed mesh)');
     }
   });
-
-  const animationNames = gltf.animations.map(
-    animation => animation.name || '(unnamed animation)'
-  );
-
+const animationDetails = gltf.animations.map(animation => {
+  return animation.name +
+    ' | Duration: ' + animation.duration + ' seconds' +
+    ' | Tracks: ' + animation.tracks.map(track => track.name).join(', ');
+});
   scene.add(currentObject);
   frameObject(currentObject);
 
