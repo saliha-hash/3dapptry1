@@ -465,11 +465,6 @@ function animate() {
   animationFrame = requestAnimationFrame(animate);
 
   const delta = clock.getDelta();
-
-  if (caliperMixer) {
-    caliperMixer.update(delta);
-  }
-
   controls.update();
   renderer.render(scene, camera);
 }
