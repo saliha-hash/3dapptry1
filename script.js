@@ -56,13 +56,22 @@ renderer.setClearColor(0x000000, 1);
 
 viewer.appendChild(renderer.domElement);
 
-
 const controls = new OrbitControls(camera, renderer.domElement);
+
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
+controls.dampingFactor = 0.08;
+
+// Allow one-finger rotation and two-finger zoom on mobile.
+controls.enableRotate = true;
+controls.enableZoom = true;
 controls.enablePan = true;
-controls.minDistance = 2;
+
+// Allow closer zoom.
+controls.minDistance = 0.5;
 controls.maxDistance = 30;
+
+// Zoom toward the point under the fingers.
+controls.zoomToCursor = true;
 
 
 scene.add(new THREE.AmbientLight(0xffffff, 2.2));
