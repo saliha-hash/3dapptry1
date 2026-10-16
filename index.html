@@ -227,7 +227,23 @@
       </p>
     </section>
   </main>
+<div id="debug" style="color:white;padding:12px;overflow-wrap:anywhere">
+  Checking JavaScript...
+</div>
 
-  <script type="module" src="./script.js"></script>
+<script>
+  window.addEventListener("error", function (event) {
+    document.getElementById("debug").textContent =
+      "JavaScript error: " + event.message;
+  });
+
+  window.addEventListener("unhandledrejection", function (event) {
+    document.getElementById("debug").textContent =
+      "Loading error: " + event.reason;
+  });
+</script>
+
+<script type="module" src="./script.js"></script>
+
 </body>
   </html>
