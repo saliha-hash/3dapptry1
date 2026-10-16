@@ -149,36 +149,37 @@ function removeSelectedObject() {
 
   setStatus(caliper ? "3D caliper loaded." : "Waiting for caliper model.");
 }
-
-
 function setDimensionLabels(shape) {
-  if (shape === "sphere") {
-    labelA.textContent = "Diameter";
-    labelB.textContent = "Not used";
-    labelC.textContent = "Not used";
-    dimensionB.disabled = true;
-    dimensionC.disabled = true;
-  } else if (shape === "cube") {
-    labelA.textContent = "Side";
-    labelB.textContent = "Not used";
-    labelC.textContent = "Not used";
-    dimensionB.disabled = true;
-    dimensionC.disabled = true;
-  } else if (shape === "cylinder") {
-    labelA.textContent = "Diameter";
-    labelB.textContent = "Height";
-    labelC.textContent = "Not used";
-    dimensionB.disabled = false;
-    dimensionC.disabled = true;
-  } else {
-    labelA.textContent = "Width";
-    labelB.textContent = "Height";
-    labelC.textContent = "Depth";
-    dimensionB.disabled = false;
-    dimensionC.disabled = false;
-  }
-}
+  labelA.textContent = "Diameter (mm)";
+  labelB.textContent = "Height (mm)";
+  labelC.textContent = "Depth (mm)";
 
+  dimensionA.disabled = false;
+  dimensionB.disabled = false;
+  dimensionC.disabled = false;
+
+  if (shape === "sphere") {
+    labelA.textContent = "Diameter (mm)";
+    labelB.textContent = "Height (mm)";
+    labelC.textContent = "Depth (mm)";
+  } else if (shape === "cube") {
+    labelA.textContent = "Side (mm)";
+    labelB.textContent = "Height (mm)";
+    labelC.textContent = "Depth (mm)";
+  } else if (shape === "cylinder") {
+    labelA.textContent = "Diameter (mm)";
+    labelB.textContent = "Height (mm)";
+    labelC.textContent = "Depth (mm)";
+  } else if (shape === "cuboid") {
+    labelA.textContent = "Width (mm)";
+    labelB.textContent = "Height (mm)";
+    labelC.textContent = "Depth (mm)";
+  } else if (shape === "cone") {
+    labelA.textContent = "Diameter (mm)";
+    labelB.textContent = "Height (mm)";
+    labelC.textContent = "Depth (mm)";
+  }
+      }
 
 function makeMaterial() {
   return new THREE.MeshStandardMaterial({
