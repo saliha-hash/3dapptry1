@@ -1,10 +1,14 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js';
+import * as THREE from
+  'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+import { OrbitControls } from
+  'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
+
+import { GLTFLoader } from
+  'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js';
 
 const viewer = document.getElementById('viewer');
 const status = document.getElementById('status');
-alert("JavaScript is running");
 const measurement = document.getElementById('measurement');
 
 const inputA = document.getElementById('dimensionA');
@@ -18,10 +22,10 @@ const camera = new THREE.PerspectiveCamera(
   45,
   viewer.clientWidth / viewer.clientHeight,
   0.1,
-  2000
+  10000
 );
 
-camera.position.set(70, 60, 100);
+camera.position.set(60, 50, 80);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true
@@ -35,18 +39,14 @@ viewer.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 5;
-controls.maxDistance = 800;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x394353, 2));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x526078, 2));
 
 const light = new THREE.DirectionalLight(0xffffff, 3);
-light.position.set(60, 100, 80);
+light.position.set(50, 80, 60);
 scene.add(light);
 
-const floorGrid = new THREE.GridHelper(200, 20, 0x526174, 0x27313e);
-scene.add(floorGrid);
+scene.add(new THREE.GridHelper(200, 20, 0x526174, 0x27313e));
 
 let currentObject = null;
 let currentShape = 'sphere';
@@ -54,70 +54,56 @@ let isCaliper = false;
 
 const loader = new GLTFLoader();
 
-function showStatus(message) {
+function setStatus(message) {
   status.textContent = message;
 }
 
-function removeCurrentObject() {
-  if (!currentObject) return;
-
-  scene.remove(currentObject);
-
-  currentObject.traverse((child) => {
-    if (child.geometry) {
-      child.geometry.dispose();
-    }
-
-    if (child.material) {
-      const materials = Array.isArray(child.material)
-        ? child.material
-        : [child.material];
-
-      materials.forEach((material) => material.dispose());
-    }
-  });
-
-  currentObject = null;
+function removeObject() {
+  if (currentObject) {
+    scene.remove(currentObject);
+    currentObject = null;
+  }
 }
 
-function fitCamera(object) {
+function frameObject(object) {
   const box = new THREE.Box3().setFromObject(object);
+
+  if (box.isEmpty()) {
+    setStatus('The model contains no visible geometry.');
+    return;
+  }
+
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-
-  const maxDimension = Math.max(size.x, size.y, size.z, 1);
+  const maxSize = Math.max(size.x, size.y, size.z);
 
   controls.target.copy(center);
 
   camera.position.set(
-    center.x + maxDimension * 1.6,
-    center.y + maxDimension * 1.2,
-    center.z + maxDimension * 1.8
+    center.x + maxSize * 1.5,
+    center.y + maxSize,
+    center.z + maxSize * 1.8
   );
 
-  camera.near = Math.max(maxDimension / 1000, 0.01);
-  camera.far = maxDimension * 100;
+  camera.near = Math.max(maxSize / 1000, 0.01);
+  camera.far = Math.max(maxSize * 100, 1000);
   camera.updateProjectionMatrix();
 
-  controls.minDistance = maxDimension * 0.15;
-  controls.maxDistance = maxDimension * 10;
+  controls.minDistance = Math.max(maxSize * 0.05, 0.1);
+  controls.maxDistance = Math.max(maxSize * 10, 100);
 
   controls.update();
 }
 
-function readDimensions() {
+function getDimensions() {
   const a = Number(inputA.value);
   const b = Number(inputB.value);
   const c = Number(inputC.value);
 
-  if (
-    !Number.isFinite(a) ||
-    !Number.isFinite(b) ||
-    !Number.isFinite(c) ||
-    a <= 0 || b <= 0 || c <= 0 ||
-    a > 500 || b > 500 || c > 500
-  ) {
-    showStatus('Enter dimensions between 1 and 500 mm.');
+  if (![a, b, c].every(
+    value => Number.isFinite(value) && value > 0 && value <= 500
+  )) {
+    setStatus('Enter dimensions between 1 and 500 mm.');
     return null;
   }
 
@@ -125,105 +111,92 @@ function readDimensions() {
 }
 
 function createShape(shape) {
-  const dimensions = readDimensions();
+  const dimensions = getDimensions();
   if (!dimensions) return;
 
   const { a, b, c } = dimensions;
 
-  removeCurrentObject();
+  removeObject();
 
   let geometry;
 
-  if (shape === 'sphere') {
-    // Input A is the radius.
-    geometry = new THREE.SphereGeometry(a, 48, 32);
-  } else if (shape === 'cylinder') {
-    // Input A is the radius; input B is the height.
-    geometry = new THREE.CylinderGeometry(a, a, b, 48);
-  } else if (shape === 'cube') {
-    geometry = new THREE.BoxGeometry(a, a, a);
-  } else if (shape === 'cuboid') {
-    geometry = new THREE.BoxGeometry(a, b, c);
-  } else if (shape === 'cone') {
-    // Input A is the base radius; input B is the height.
-    geometry = new THREE.ConeGeometry(a, b, 48);
-  }
+  switch (shape) {
+    case 'sphere':
+      geometry = new THREE.SphereGeometry(a, 32, 24);
+      break;
 
-  if (!geometry) return;
+    case 'cylinder':
+      geometry = new THREE.CylinderGeometry(a, a, b, 32);
+      break;
+
+    case 'cube':
+      geometry = new THREE.BoxGeometry(a, a, a);
+      break;
+
+    case 'cuboid':
+      geometry = new THREE.BoxGeometry(a, b, c);
+      break;
+
+    case 'cone':
+      geometry = new THREE.ConeGeometry(a, b, 32);
+      break;
+
+    default:
+      return;
+  }
 
   const material = new THREE.MeshStandardMaterial({
     color: 0xb8c6d9,
-    metalness: 0.65,
-    roughness: 0.3
+    metalness: 0.35,
+    roughness: 0.35
   });
 
   currentObject = new THREE.Mesh(geometry, material);
-  currentObject.position.set(0, 0, 0);
 
   scene.add(currentObject);
 
   currentShape = shape;
   isCaliper = false;
 
-  fitCamera(currentObject);
+  frameObject(currentObject);
 
   measurement.textContent =
-    'Selected: ' + shape + '. Dimensions are in millimetres.';
+    `Selected: ${shape}. Dimensions are in millimetres.`;
 
-  showStatus('3D ' + shape + ' created successfully.');
+  setStatus(`${shape} created.`);
 }
 
 function loadCaliper() {
-  removeCurrentObject();
-
+  removeObject();
   isCaliper = true;
 
-  showStatus('Loading Vernier caliper model...');
+  setStatus('Loading Vernier caliper...');
 
   loader.load(
     './verniercaliper.glb',
 
     (gltf) => {
-      if (!isCaliper) {
-        gltf.scene.traverse((child) => {
-          if (child.geometry) child.geometry.dispose();
-
-          if (child.material) {
-            const materials = Array.isArray(child.material)
-              ? child.material
-              : [child.material];
-
-            materials.forEach((material) => material.dispose());
-          }
-        });
-
-        return;
-      }
+      if (!isCaliper) return;
 
       currentObject = gltf.scene;
-
       scene.add(currentObject);
-      fitCamera(currentObject);
 
-      measurement.textContent =
-        'Vernier caliper model loaded.';
+      frameObject(currentObject);
 
-      showStatus('Caliper loaded. Drag to rotate and pinch to zoom.');
+      measurement.textContent = 'Vernier caliper model loaded.';
+      setStatus('Caliper loaded. Drag to rotate; pinch to zoom.');
     },
 
     undefined,
 
     (error) => {
-      console.error('Caliper loading error:', error);
-
-      showStatus(
-        'Could not load the caliper. Check the GLB filename and GitHub Pages.'
-      );
+      console.error(error);
+      setStatus('Caliper failed to load. Check the filename and file URL.');
     }
   );
 }
 
-document.querySelectorAll('[data-shape]').forEach((button) => {
+document.querySelectorAll('[data-shape]').forEach(button => {
   button.addEventListener('click', () => {
     createShape(button.dataset.shape);
   });
@@ -238,7 +211,7 @@ document.getElementById('updateButton').addEventListener(
   'click',
   () => {
     if (isCaliper) {
-      showStatus('Select a shape to change its dimensions.');
+      setStatus('Select a shape before changing its dimensions.');
       return;
     }
 
@@ -249,11 +222,10 @@ document.getElementById('updateButton').addEventListener(
 document.getElementById('removeButton').addEventListener(
   'click',
   () => {
-    removeCurrentObject();
+    removeObject();
     isCaliper = false;
-
     measurement.textContent = 'No object selected.';
-    showStatus('Object removed.');
+    setStatus('Object removed.');
   }
 );
 
@@ -261,16 +233,16 @@ document.getElementById('resetButton').addEventListener(
   'click',
   () => {
     if (currentObject) {
-      fitCamera(currentObject);
+      frameObject(currentObject);
     } else {
-      camera.position.set(70, 60, 100);
+      camera.position.set(60, 50, 80);
       controls.target.set(0, 0, 0);
       controls.update();
     }
   }
 );
 
-function resizeViewer() {
+window.addEventListener('resize', () => {
   const width = viewer.clientWidth;
   const height = viewer.clientHeight;
 
@@ -278,15 +250,11 @@ function resizeViewer() {
 
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
-
   renderer.setSize(width, height);
-}
-
-window.addEventListener('resize', resizeViewer);
+});
 
 function animate() {
   requestAnimationFrame(animate);
-
   controls.update();
   renderer.render(scene, camera);
 }
