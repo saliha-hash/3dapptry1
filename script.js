@@ -265,7 +265,7 @@ function addObject(shape) {
    * This is a demonstration object in the scene.
    * Its position is not yet calibrated to the actual caliper jaws.
    */
-  selectedObject.position.set(0, 0, 0.25);
+  selectedObject.position.set(-1.0, 0.15, 0.25);
 
   objectGroup.add(selectedObject);
 
