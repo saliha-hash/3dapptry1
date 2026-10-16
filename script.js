@@ -1,329 +1,383 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#000000">
+import * as THREE from 'three';
 
-  <title>Vernier Caliper | Science Lab</title>
+import { OrbitControls } from
+  'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
 
-  <style>
-    * {
-      box-sizing: border-box;
+import { GLTFLoader } from
+  'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js';
+
+const viewer = document.getElementById('viewer');
+const status = document.getElementById('status');
+const measurement = document.getElementById('measurement');
+
+const inputA = document.getElementById('dimensionA');
+const inputB = document.getElementById('dimensionB');
+const inputC = document.getElementById('dimensionC');
+
+const labelA = document.getElementById('labelA');
+const labelB = document.getElementById('labelB');
+const labelC = document.getElementById('labelC');
+
+const menuButton = document.getElementById('otherObjectsButton');
+const objectMenu = document.getElementById('objectMenu');
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(
+  38,
+  viewer.clientWidth / viewer.clientHeight,
+  0.01,
+  1000
+);
+
+camera.position.set(0, 1.5, 8);
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: false
+});
+
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio || 1, 2)
+);
+
+renderer.setSize(
+  viewer.clientWidth,
+  viewer.clientHeight
+);
+
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.4;
+
+viewer.appendChild(renderer.domElement);
+
+// Lighting for metallic-looking objects.
+scene.add(new THREE.AmbientLight(0xffffff, 2));
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 3.5);
+keyLight.position.set(4, 6, 7);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xc9dcff, 2);
+fillLight.position.set(-5, 1, 3);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
+rimLight.position.set(0, -3, -5);
+scene.add(rimLight);
+
+// Gentle touch controls.
+const controls = new OrbitControls(camera, renderer.domElement);
+
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.rotateSpeed = 0.4;
+controls.zoomSpeed = 0.55;
+controls.panSpeed = 0.4;
+controls.minDistance = 1;
+controls.maxDistance = 35;
+controls.target.set(0, 0, 0);
+
+// Model and object state.
+const loader = new GLTFLoader();
+
+let caliper = null;
+let mixer = null;
+let selectedObject = null;
+let selectedShape = 'sphere';
+
+// Keep all shapes small relative to the viewer.
+const UNIT = 0.018;
+
+const silverMaterial = new THREE.MeshStandardMaterial({
+  color: 0xd7dce2,
+  metalness: 0.78,
+  roughness: 0.26
+});
+
+const objectGroup = new THREE.Group();
+scene.add(objectGroup);
+
+// Display errors only when something actually fails.
+function showStatus(message) {
+  status.textContent = message;
+  status.classList.add('visible');
+}
+
+function clearStatus() {
+  status.textContent = '';
+  status.classList.remove('visible');
+}
+
+// Load the existing model.
+loader.load(
+  './verniercaliper.glb',
+
+  (gltf) => {
+    caliper = gltf.scene;
+
+    // Find the model's original dimensions.
+    caliper.updateMatrixWorld(true);
+
+    const originalBox = new THREE.Box3().setFromObject(caliper);
+    const originalSize = originalBox.getSize(new THREE.Vector3());
+
+    const largest = Math.max(
+      originalSize.x,
+      originalSize.y,
+      originalSize.z
+    );
+
+    if (!Number.isFinite(largest) || largest <= 0) {
+      showStatus('The caliper model has invalid dimensions.');
+      return;
     }
 
-    body {
-      margin: 0;
-      background: #000;
-      color: #f3f4f6;
-      font-family: Arial, sans-serif;
-    }
+    // Make the caliper larger in the viewer.
+    const desiredSize = 7.0;
+    const scale = desiredSize / largest;
 
-    header {
-      padding: 15px 16px;
-      text-align: center;
-      background: #000;
-    }
+    caliper.scale.setScalar(scale);
+    caliper.updateMatrixWorld(true);
 
-    header h1 {
-      margin: 0;
-      font-size: 25px;
-      font-weight: 600;
-      letter-spacing: .5px;
-    }
+    // Centre the model.
+    const box = new THREE.Box3().setFromObject(caliper);
+    const center = box.getCenter(new THREE.Vector3());
 
-    main {
-      width: 100%;
-      max-width: 850px;
-      margin: auto;
-      padding: 10px 14px 28px;
-    }
+    caliper.position.sub(center);
+    scene.add(caliper);
 
-    .viewer-panel {
-      overflow: hidden;
-      background: #000;
-      border: 1px solid #242424;
-      border-radius: 12px;
-    }
+    // Play the existing model animation if present.
+    if (gltf.animations && gltf.animations.length > 0) {
+      mixer = new THREE.AnimationMixer(caliper);
 
-    #viewer {
-      width: 100%;
-      height: min(62vh, 520px);
-      min-height: 340px;
-      background: #000;
-      position: relative;
-      overflow: hidden;
-    }
-
-    #viewer canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-    }
-
-    .viewer-help {
-      padding: 8px 12px;
-      color: #929292;
-      font-size: 12px;
-      text-align: center;
-    }
-
-    .section {
-      padding: 17px 0;
-      border-bottom: 1px solid #202020;
-    }
-
-    h2 {
-      margin: 0 0 12px;
-      font-size: 17px;
-      font-weight: 600;
-    }
-
-    button {
-      color: #f5f5f5;
-      background: #171717;
-      border: 1px solid #454545;
-      border-radius: 8px;
-      padding: 11px 14px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    button:active {
-      background: #303030;
-    }
-
-    .menu-button {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      text-align: left;
-      font-size: 15px;
-    }
-
-    #objectMenu {
-      display: none;
-      flex-direction: column;
-      gap: 7px;
-      margin-top: 8px;
-    }
-
-    #objectMenu.open {
-      display: flex;
-    }
-
-    .object-option {
-      width: 100%;
-      text-align: left;
-      padding: 12px 14px;
-      background: #0d0d0d;
-      border-color: #292929;
-    }
-
-    .object-option.selected {
-      border-color: #c4c4c4;
-      background: #202020;
-    }
-
-    .dimensions {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 9px;
-    }
-
-    label {
-      display: block;
-      color: #bcbcbc;
-      font-size: 12px;
-      margin-bottom: 7px;
-    }
-
-    input {
-      width: 100%;
-      min-width: 0;
-      padding: 11px 7px;
-      background: #0a0a0a;
-      color: white;
-      border: 1px solid #444;
-      border-radius: 7px;
-      font-size: 16px;
-    }
-
-    .button-row {
-      display: flex;
-      gap: 9px;
-      margin-top: 12px;
-    }
-
-    .button-row button {
-      flex: 1;
-    }
-
-    .primary {
-      background: #e5e5e5;
-      color: #000;
-      border-color: #e5e5e5;
-      font-weight: 600;
-    }
-
-    .result-box {
-      margin-top: 14px;
-      padding: 13px;
-      border: 1px solid #292929;
-      border-radius: 8px;
-      background: #080808;
-      line-height: 1.6;
-      overflow-wrap: anywhere;
-      font-size: 14px;
-    }
-
-    .muted {
-      color: #999;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    #status {
-      display: none;
-      padding: 10px;
-      color: #d0d0d0;
-      font-size: 13px;
-      overflow-wrap: anywhere;
-    }
-
-    #status.visible {
-      display: block;
-    }
-
-    .coming-soon {
-      padding-top: 20px;
-      color: #777;
-      font-size: 12px;
-      text-align: center;
-    }
-
-    @media (max-width: 420px) {
-      main {
-        padding: 8px 10px 22px;
-      }
-
-      #viewer {
-        height: 52vh;
-        min-height: 320px;
-      }
-
-      header h1 {
-        font-size: 23px;
-      }
-
-      .dimensions {
-        gap: 6px;
+      for (const clip of gltf.animations) {
+        mixer.clipAction(clip).play();
       }
     }
-  </style>
-</head>
 
-<body>
-  <header>
-    <h1>Vernier Caliper</h1>
-  </header>
+    // Initial object.
+    createObject('sphere');
 
-  <main>
-    <section class="viewer-panel">
-      <div id="viewer"></div>
-      <div class="viewer-help">
-        Drag to rotate · Pinch to zoom
-      </div>
-      <div id="status" role="status"></div>
-    </section>
+    // The camera is fixed relative to the overall model.
+    camera.position.set(0, 1.1, 8.4);
+    controls.target.set(0, 0, 0);
+    controls.update();
 
-    <section class="section">
-      <button
-        id="otherObjectsButton"
-        class="menu-button"
-        aria-expanded="false"
-        aria-controls="objectMenu"
-      >
-        <span>＋ Other Objects</span>
-        <span id="menuArrow">⌄</span>
-      </button>
+    clearStatus();
+  },
 
-      <div id="objectMenu">
-        <button class="object-option" data-shape="sphere">Sphere</button>
-        <button class="object-option" data-shape="cube">Cube</button>
-        <button class="object-option" data-shape="cylinder">Cylinder</button>
-        <button class="object-option" data-shape="cuboid">Cuboid</button>
-        <button class="object-option" data-shape="cone">Cone</button>
-      </div>
-    </section>
+  undefined,
 
-    <section class="section">
-      <h2>Object Dimensions (mm)</h2>
+  (error) => {
+    console.error('Caliper model loading failed:', error);
 
-      <div class="dimensions">
-        <div>
-          <label id="labelA" for="dimensionA">Diameter</label>
-          <input id="dimensionA" type="number"
-                 min="1" max="100" step="1" value="6">
-        </div>
-
-        <div>
-          <label id="labelB" for="dimensionB">Height</label>
-          <input id="dimensionB" type="number"
-                 min="1" max="100" step="1" value="6">
-        </div>
-
-        <div>
-          <label id="labelC" for="dimensionC">Depth</label>
-          <input id="dimensionC" type="number"
-                 min="1" max="100" step="1" value="6">
-        </div>
-      </div>
-
-      <div class="button-row">
-        <button id="updateButton" class="primary">Update Size</button>
-        <button id="removeButton">Remove Object</button>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>Measurement & Formula</h2>
-
-      <div id="measurement" class="result-box">
-        Select an object to begin.
-      </div>
-
-      <p class="muted">
-        Vernier reading = Main scale reading +
-        (Vernier coincidence × Least count).
-      </p>
-
-      <p class="muted">
-        The displayed object dimensions are simulation values.
-        They are not actual Vernier readings unless the model
-        and measuring scale are calibrated.
-      </p>
-    </section>
-
-    <div class="button-row">
-      <button id="resetButton">Reset View</button>
-    </div>
-
-    <p class="coming-soon">
-      More scientific instruments coming soon.
-    </p>
-  </main>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
-    }
+    showStatus(
+      'The caliper model could not load. Check that the file is named verniercaliper.glb and is in the repository root.'
+    );
   }
-  </script>
+);
 
-  <script type="module" src="./script.js?v=10"></script>
-</body>
-</html>
+// Update labels for each selected shape.
+function updateLabels(type) {
+  if (type === 'sphere') {
+    labelA.textContent = 'Diameter (mm)';
+    labelB.textContent = 'Not used';
+    labelC.textContent = 'Not used';
+  } else if (type === 'cube') {
+    labelA.textContent = 'Side (mm)';
+    labelB.textContent = 'Not used';
+    labelC.textContent = 'Not used';
+  } else if (type === 'cylinder' || type === 'cone') {
+    labelA.textContent = 'Diameter (mm)';
+    labelB.textContent = 'Height (mm)';
+    labelC.textContent = 'Not used';
+  } else {
+    labelA.textContent = 'Length (mm)';
+    labelB.textContent = 'Width (mm)';
+    labelC.textContent = 'Height (mm)';
+  }
+}
+
+// Create or replace the selected object.
+function createObject(type) {
+  selectedShape = type;
+
+  if (selectedObject) {
+    objectGroup.remove(selectedObject);
+    selectedObject.geometry.dispose();
+    selectedObject = null;
+  }
+
+  let a = Math.max(1, Number(inputA.value) || 6);
+  let b = Math.max(1, Number(inputB.value) || 6);
+  let c = Math.max(1, Number(inputC.value) || 6);
+
+  // Limit initial objects and prevent giant shapes.
+  a = Math.min(a, 100);
+  b = Math.min(b, 100);
+  c = Math.min(c, 100);
+
+  let geometry;
+
+  switch (type) {
+    case 'sphere':
+      geometry = new THREE.SphereGeometry(
+        a * UNIT / 2,
+        40,
+        32
+      );
+      break;
+
+    case 'cube':
+      geometry = new THREE.BoxGeometry(
+        a * UNIT,
+        a * UNIT,
+        a * UNIT
+      );
+      break;
+
+    case 'cylinder':
+      geometry = new THREE.CylinderGeometry(
+        a * UNIT / 2,
+        a * UNIT / 2,
+        b * UNIT,
+        40
+      );
+      break;
+
+    case 'cuboid':
+      geometry = new THREE.BoxGeometry(
+        a * UNIT,
+        b * UNIT,
+        c * UNIT
+      );
+      break;
+
+    case 'cone':
+      geometry = new THREE.ConeGeometry(
+        a * UNIT / 2,
+        b * UNIT,
+        40
+      );
+      break;
+
+    default:
+      return;
+  }
+
+  selectedObject = new THREE.Mesh(geometry, silverMaterial);
+
+  // This is a temporary placement position.
+  // Actual jaw positioning requires the model's jaw coordinates.
+  selectedObject.position.set(0, 0, 0.25);
+
+  objectGroup.add(selectedObject);
+
+  updateLabels(type);
+  updateMeasurement();
+
+  document.querySelectorAll('.object-option').forEach((button) => {
+    button.classList.toggle(
+      'selected',
+      button.dataset.shape === type
+    );
+  });
+}
+
+// Open and close the vertical object list.
+menuButton.addEventListener('click', () => {
+  const isOpen = objectMenu.classList.toggle('open');
+
+  menuButton.setAttribute('aria-expanded', String(isOpen));
+  document.getElementById('menuArrow').textContent =
+    isOpen ? '⌃' : '⌄';
+});
+
+// Object choices.
+document.querySelectorAll('.object-option').forEach((button) => {
+  button.addEventListener('click', () => {
+    createObject(button.dataset.shape);
+
+    objectMenu.classList.remove('open');
+    menuButton.setAttribute('aria-expanded', 'false');
+    document.getElementById('menuArrow').textContent = '⌄';
+  });
+});
+
+// Update the current object's dimensions.
+document.getElementById('updateButton').addEventListener('click', () => {
+  createObject(selectedShape);
+});
+
+// Remove only the selected object.
+document.getElementById('removeButton').addEventListener('click', () => {
+  if (selectedObject) {
+    objectGroup.remove(selectedObject);
+    selectedObject.geometry.dispose();
+    selectedObject = null;
+  }
+
+  measurement.textContent = 'No object selected.';
+});
+
+// Reset camera position.
+document.getElementById('resetButton').addEventListener('click', () => {
+  camera.position.set(0, 1.1, 8.4);
+  controls.target.set(0, 0, 0);
+  controls.update();
+});
+
+// Teaching formula and simulated calculation.
+function updateMeasurement() {
+  if (!selectedObject) {
+    measurement.textContent = 'No object selected.';
+    return;
+  }
+
+  const a = Math.max(0, Number(inputA.value) || 0);
+
+  measurement.textContent =
+    `Selected object: ${selectedShape}\n` +
+    `Entered dimension: ${a} mm\n` +
+    `Vernier formula: Main scale reading + ` +
+    `(Vernier coincidence × Least count)\n\n` +
+    `This is the entered dimension, not a reading measured by the model.`;
+}
+
+[inputA, inputB, inputC].forEach((input) => {
+  input.addEventListener('change', updateMeasurement);
+});
+
+// Keep the viewer fitted to the available screen size.
+window.addEventListener('resize', () => {
+  const width = viewer.clientWidth;
+  const height = viewer.clientHeight;
+
+  if (!width || !height) return;
+
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(width, height);
+});
+
+// Animation loop.
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+
+  if (mixer) {
+    mixer.update(delta);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
