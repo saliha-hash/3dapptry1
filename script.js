@@ -174,19 +174,34 @@ function loadCaliper() {
 
   loader.load(
     './verniercaliper.glb',
+(gltf) => {
+  if (!isCaliper) return;
 
-    (gltf) => {
-      if (!isCaliper) return;
+  currentObject = gltf.scene;
 
-      currentObject = gltf.scene;
-      scene.add(currentObject);
+  const meshNames = [];
 
-      frameObject(currentObject);
+  currentObject.traverse((part) => {
+    if (part.isMesh) {
+      meshNames.push(part.name || '(unnamed mesh)');
+    }
+  });
 
-      measurement.textContent = 'Vernier caliper model loaded.';
-      setStatus('Caliper loaded. Drag to rotate; pinch to zoom.');
-    },
+  const animationNames = gltf.animations.map(
+    animation => animation.name || '(unnamed animation)'
+  );
 
+  scene.add(currentObject);
+  frameObject(currentObject);
+
+  measurement.textContent =
+    'Meshes (' + meshNames.length + '): ' +
+    meshNames.join(', ') +
+    ' | Animations: ' +
+    (animationNames.join(', ') || 'None');
+
+  setStatus('Model inspected. Check the mesh and animation list below.');
+},
     undefined,
 
     (error) => {
