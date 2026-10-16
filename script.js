@@ -1,31 +1,30 @@
-import * as THREE from
-  'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-
-import { OrbitControls } from
-  'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
-
-import { GLTFLoader } from
-  'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js';
 
 const viewer = document.getElementById('viewer');
 const status = document.getElementById('status');
 const measurement = document.getElementById('measurement');
-
 const inputA = document.getElementById('dimensionA');
 const inputB = document.getElementById('dimensionB');
 const inputC = document.getElementById('dimensionC');
 
+if (!viewer) {
+  throw new Error('The 3D viewer element was not found.');
+}
+
+// ---------- SCENE ----------
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x08090c);
+scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(
-  38,
+  40,
   viewer.clientWidth / viewer.clientHeight,
   0.01,
   10000
 );
 
-camera.position.set(35, 25, 40);
+camera.position.set(0, 2.5, 8);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -36,350 +35,291 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(viewer.clientWidth, viewer.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
-
+renderer.toneMappingExposure = 1.25;
 viewer.appendChild(renderer.domElement);
 
-// Smooth mobile camera controls.
-const controls = new OrbitControls(camera, renderer.domElement);
-
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.rotateSpeed = 0.35;
-controls.zoomSpeed = 0.45;
-controls.panSpeed = 0.35;
-controls.enablePan = true;
-controls.minDistance = 1;
-controls.maxDistance = 500;
-controls.target.set(0, 0, 0);
-
-// Professional studio lighting.
-scene.add(
-  new THREE.HemisphereLight(0xe8efff, 0x252a33, 2.0)
-);
+// ---------- LIGHTING ----------
+scene.add(new THREE.AmbientLight(0xffffff, 1.8));
 
 const mainLight = new THREE.DirectionalLight(0xffffff, 3.5);
-mainLight.position.set(20, 35, 30);
+mainLight.position.set(4, 6, 5);
 scene.add(mainLight);
 
-const fillLight = new THREE.DirectionalLight(0xb5caff, 2);
-fillLight.position.set(-25, 10, -20);
+const fillLight = new THREE.DirectionalLight(0xb8d5ff, 2);
+fillLight.position.set(-5, 2, -4);
 scene.add(fillLight);
 
 const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
-rimLight.position.set(0, 20, -30);
+rimLight.position.set(0, -3, 5);
 scene.add(rimLight);
 
-// State.
-let currentObject = null;
-let currentShape = 'sphere';
-let isCaliper = false;
-let mixer = null;
-let animationAction = null;
-let currentModel = null;
+// ---------- CAMERA CONTROLS ----------
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.045;
+controls.rotateSpeed = 0.45;
+controls.zoomSpeed = 0.55;
+controls.panSpeed = 0.4;
+controls.minDistance = 1;
+controls.maxDistance = 100;
+controls.target.set(0, 0, 0);
 
+// ---------- OBJECTS ----------
 const loader = new GLTFLoader();
 
-function setStatus(message) {
-  status.textContent = message;
-}
+let caliper = null;
+let caliperMixer = null;
+let selectedObject = null;
+let selectedObjectType = 'sphere';
+let objectSize = { a: 10, b: 10, c: 10 };
 
-function disposeObject(object) {
-  object.traverse(part => {
-    if (part.isMesh) {
-      part.geometry.dispose();
+const silverMaterial = new THREE.MeshStandardMaterial({
+  color: 0xc9cdd2,
+  metalness: 0.88,
+  roughness: 0.24
+});
 
-      if (Array.isArray(part.material)) {
-        part.material.forEach(material => material.dispose());
-      } else if (part.material) {
-        part.material.dispose();
-      }
+const objectGroup = new THREE.Group();
+scene.add(objectGroup);
+
+// ---------- LOAD VERNIER CALIPER ----------
+loader.load(
+  './verniercaliper.glb',
+  (gltf) => {
+    caliper = gltf.scene;
+
+    // Keep the model's original proportions.
+    caliper.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(caliper);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const largestDimension = Math.max(size.x, size.y, size.z);
+
+    if (largestDimension > 0) {
+      const scale = 5.2 / largestDimension;
+      caliper.scale.setScalar(scale);
     }
-  });
-}
 
-function removeObject() {
-  if (currentObject) {
-    scene.remove(currentObject);
-    disposeObject(currentObject);
-    currentObject = null;
+    // Recenter the model after scaling.
+    caliper.updateMatrixWorld(true);
+
+    const scaledBox = new THREE.Box3().setFromObject(caliper);
+    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+
+    caliper.position.sub(scaledCenter);
+    scene.add(caliper);
+
+    // Automatically play the model's existing animation.
+    if (gltf.animations && gltf.animations.length > 0) {
+      caliperMixer = new THREE.AnimationMixer(caliper);
+      gltf.animations.forEach((clip) => {
+        caliperMixer.clipAction(clip).play();
+      });
+    }
+
+    // Show the caliper prominently in the viewer.
+    camera.position.set(0, 1.2, 7.2);
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    // Put a small silver sphere in the scene as the starting object.
+    createObject('sphere');
+
+    if (status) status.textContent = '';
+  },
+  undefined,
+  (error) => {
+    console.error('Could not load Vernier caliper model:', error);
+    if (status) {
+      status.textContent = 'Could not load the caliper model. Check the model filename.';
+    }
+  }
+);
+
+// ---------- CREATE OBJECTS ----------
+function createObject(type) {
+  if (selectedObject) {
+    objectGroup.remove(selectedObject);
+    selectedObject.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry.dispose();
+      }
+    });
   }
 
-  if (mixer) {
-    mixer.stopAllAction();
-    mixer = null;
-  }
+  selectedObjectType = type;
 
-  animationAction = null;
-  currentModel = null;
-}
+  const a = Math.max(0.1, Number(inputA?.value) || 10);
+  const b = Math.max(0.1, Number(inputB?.value) || 10);
+  const c = Math.max(0.1, Number(inputC?.value) || 10);
 
-function frameObject(object) {
-  object.updateMatrixWorld(true);
-
-  const box = new THREE.Box3().setFromObject(object);
-
-  if (box.isEmpty()) {
-    setStatus('No visible model geometry was found.');
-    return;
-  }
-
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-  const maxSize = Math.max(size.x, size.y, size.z);
-
-  controls.target.copy(center);
-
-  // Fill the viewer without cutting off the object.
-  const distance =
-    maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(
-      camera.fov / 2
-    ))) * 1.35;
-
-  camera.position.set(
-    center.x + distance * 0.65,
-    center.y + distance * 0.45,
-    center.z + distance
-  );
-
-  camera.near = Math.max(maxSize / 1000, 0.01);
-  camera.far = Math.max(maxSize * 100, 1000);
-  camera.updateProjectionMatrix();
-
-  controls.minDistance = Math.max(maxSize * 0.03, 0.1);
-  controls.maxDistance = Math.max(maxSize * 8, 50);
-
-  controls.update();
-}
-
-function getDimensions() {
-  const a = Number(inputA.value);
-  const b = Number(inputB.value);
-  const c = Number(inputC.value);
-
-  if (![a, b, c].every(
-    value => Number.isFinite(value) && value > 0 && value <= 500
-  )) {
-    setStatus('Enter dimensions between 1 and 500 mm.');
-    return null;
-  }
-
-  return { a, b, c };
-}
-
-// Realistic-looking silver material.
-function silverMaterial() {
-  return new THREE.MeshStandardMaterial({
-    color: 0xc5cbd3,
-    metalness: 0.85,
-    roughness: 0.23
-  });
-}
-
-function createShape(shape) {
-  const dimensions = getDimensions();
-  if (!dimensions) return;
-
-  const { a, b, c } = dimensions;
-
-  removeObject();
+  objectSize = { a, b, c };
 
   let geometry;
 
-  switch (shape) {
+  // These are deliberately small so they look like objects
+  // being measured, not giant shapes filling the screen.
+  const scale = 0.035;
+
+  switch (type) {
     case 'sphere':
-      // A is the diameter in millimetres.
-      geometry = new THREE.SphereGeometry(a / 2, 64, 48);
+      geometry = new THREE.SphereGeometry(a * scale / 2, 40, 32);
+      break;
+
+    case 'cube':
+      geometry = new THREE.BoxGeometry(
+        a * scale,
+        a * scale,
+        a * scale
+      );
       break;
 
     case 'cylinder':
       geometry = new THREE.CylinderGeometry(
-        a / 2, a / 2, b, 48
+        a * scale / 2,
+        a * scale / 2,
+        b * scale,
+        40
       );
-      break;
-
-    case 'cube':
-      geometry = new THREE.BoxGeometry(a, a, a);
       break;
 
     case 'cuboid':
-      geometry = new THREE.BoxGeometry(a, b, c);
+      geometry = new THREE.BoxGeometry(
+        a * scale,
+        b * scale,
+        c * scale
+      );
       break;
 
     case 'cone':
-      geometry = new THREE.ConeGeometry(a / 2, b, 48);
+      geometry = new THREE.ConeGeometry(
+        a * scale / 2,
+        b * scale,
+        40
+      );
       break;
 
     default:
-      return;
+      geometry = new THREE.SphereGeometry(0.18, 40, 32);
   }
 
-  currentObject = new THREE.Mesh(geometry, silverMaterial());
-  currentObject.position.set(0, a / 2, 0);
+  selectedObject = new THREE.Mesh(geometry, silverMaterial);
+  selectedObject.position.set(0, 0, 0.35);
+  selectedObject.castShadow = true;
+  selectedObject.receiveShadow = true;
 
-  scene.add(currentObject);
-
-  currentShape = shape;
-  isCaliper = false;
-
-  frameObject(currentObject);
-
-  measurement.textContent =
-    'Selected: ' + shape +
-    '. Dimensions are entered in millimetres.';
-
-  setStatus(shape + ' selected.');
+  objectGroup.add(selectedObject);
+  updateMeasurement();
 }
 
-// Load the Sketchfab Vernier caliper.
-function loadCaliper() {
-  removeObject();
-  isCaliper = true;
+// ---------- OBJECT MENU BUTTONS ----------
+// These IDs must match the buttons in index.html.
+const objectButtons = {
+  sphere: document.getElementById('sphereButton'),
+  cube: document.getElementById('cubeButton'),
+  cylinder: document.getElementById('cylinderButton'),
+  cuboid: document.getElementById('cuboidButton'),
+  cone: document.getElementById('coneButton')
+};
 
-  setStatus('Loading Vernier caliper...');
-
-  loader.load(
-    './verniercaliper.glb',
-
-    gltf => {
-      if (!isCaliper) {
-        disposeObject(gltf.scene);
-        return;
-      }
-
-      currentObject = gltf.scene;
-      currentModel = gltf.scene;
-
-      currentObject.traverse(part => {
-        if (part.isMesh) {
-          part.castShadow = true;
-          part.receiveShadow = true;
-        }
-      });
-
-      scene.add(currentObject);
-
-      // Report the model structure for future jaw controls.
-      const meshNames = [];
-
-      currentObject.traverse(part => {
-        if (part.isMesh) {
-          meshNames.push(part.name || '(unnamed)');
-        }
-      });
-
-      frameObject(currentObject);
-
-      // Automatically play the existing animation.
-      if (gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(currentObject);
-
-        animationAction = mixer.clipAction(gltf.animations[0]);
-
-        animationAction.setLoop(THREE.LoopOnce, 1);
-        animationAction.clampWhenFinished = true;
-        animationAction.reset();
-        animationAction.play();
-      }
-
-      measurement.textContent =
-        'Vernier caliper | Model parts: ' +
-        meshNames.length +
-        ' | Existing animation: ' +
-        (gltf.animations.length ? 'Playing automatically' : 'None');
-
-      setStatus(
-        'Caliper loaded. Drag gently to rotate; pinch to zoom.'
-      );
-    },
-
-    undefined,
-
-    error => {
-      console.error(error);
-      isCaliper = false;
-
-      setStatus(
-        'Unable to load the caliper. Check the model filename.'
-      );
-    }
-  );
-}
-
-// Shape selection.
-document.querySelectorAll('[data-shape]').forEach(button => {
-  button.addEventListener('click', () => {
-    createShape(button.dataset.shape);
-  });
+Object.entries(objectButtons).forEach(([type, button]) => {
+  if (button) {
+    button.addEventListener('click', () => createObject(type));
+  }
 });
 
-// Caliper selection.
-document.getElementById('caliperButton').addEventListener(
-  'click',
-  loadCaliper
-);
+// ---------- UPDATE DIMENSIONS ----------
+const updateButton = document.getElementById('updateButton');
 
-// Update dimensions.
-document.getElementById('updateButton').addEventListener(
-  'click',
-  () => {
-    if (isCaliper) {
-      setStatus('Select a shape to change its dimensions.');
-      return;
+if (updateButton) {
+  updateButton.addEventListener('click', () => {
+    createObject(selectedObjectType);
+  });
+}
+
+// ---------- RESET VIEW ----------
+const resetButton = document.getElementById('resetButton');
+
+if (resetButton) {
+  resetButton.addEventListener('click', () => {
+    camera.position.set(0, 1.2, 7.2);
+    controls.target.set(0, 0, 0);
+    controls.update();
+  });
+}
+
+// ---------- REMOVE OBJECT ----------
+const removeButton = document.getElementById('removeButton');
+
+if (removeButton) {
+  removeButton.addEventListener('click', () => {
+    if (selectedObject) {
+      objectGroup.remove(selectedObject);
+      selectedObject.geometry.dispose();
+      selectedObject = null;
     }
 
-    createShape(currentShape);
-  }
-);
-
-// Remove the selected object.
-document.getElementById('removeButton').addEventListener(
-  'click',
-  () => {
-    removeObject();
-    isCaliper = false;
-
-    measurement.textContent = 'No object selected.';
-    setStatus('Object removed.');
-  }
-);
-
-// Reset the view.
-document.getElementById('resetButton').addEventListener(
-  'click',
-  () => {
-    if (currentObject) {
-      frameObject(currentObject);
-    } else {
-      camera.position.set(35, 25, 40);
-      controls.target.set(0, 0, 0);
-      controls.update();
+    if (measurement) {
+      measurement.textContent = 'Select an object to begin.';
     }
-  }
-);
+  });
+}
 
-// Responsive viewer.
+// ---------- VERNIER CALIPER FORMULA ----------
+function updateMeasurement() {
+  if (!measurement) return;
+
+  if (!selectedObject) {
+    measurement.textContent = 'Select an object to begin.';
+    return;
+  }
+
+  const a = Math.max(0, Number(inputA?.value) || 0);
+
+  // Simplified teaching example:
+  // Reading = Main scale reading + (Vernier coincidence × least count)
+  const mainScaleReading = Math.floor(a);
+  const vernierCoincidence = 0;
+  const leastCount = 0.01;
+
+  const reading =
+    mainScaleReading + vernierCoincidence * leastCount;
+
+  measurement.textContent =
+    `Object: ${selectedObjectType} | ` +
+    `Simulated reading: ${reading.toFixed(2)} cm | ` +
+    `Formula: Main scale reading + (Vernier coincidence × least count)`;
+}
+
+[inputA, inputB, inputC].forEach((input) => {
+  if (input) {
+    input.addEventListener('change', updateMeasurement);
+  }
+});
+
+// ---------- RESIZE ----------
 window.addEventListener('resize', () => {
   const width = viewer.clientWidth;
   const height = viewer.clientHeight;
 
-  if (!width || !height) return;
+  if (width === 0 || height === 0) return;
 
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
 });
 
-// Render loop.
+// ---------- ANIMATION LOOP ----------
 const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(clock.getDelta(), 0.05);
+  const delta = clock.getDelta();
 
-  if (mixer) {
-    mixer.update(delta);
+  if (caliperMixer) {
+    caliperMixer.update(delta);
   }
 
   controls.update();
@@ -387,10 +327,3 @@ function animate() {
 }
 
 animate();
-
-// Start with a small silver sphere.
-inputA.value = 10;
-inputB.value = 10;
-inputC.value = 10;
-
-createShape('sphere');
