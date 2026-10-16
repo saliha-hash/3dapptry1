@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Virtual Lab</title>
+  <title>Vernier Caliper | Science Lab</title>
 
   <style>
     * {
@@ -12,246 +12,330 @@
 
     body {
       margin: 0;
-      background: #101318;
-      color: #f1f5f9;
+      padding: 18px 12px 30px;
+      background: #000;
+      color: #f5f5f5;
       font-family: Arial, sans-serif;
     }
 
-    header {
-      padding: 18px;
-      background: #191e27;
-      border-bottom: 1px solid #343b47;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 24px;
-    }
-
-    header p {
-      color: #aab5c5;
-      margin-bottom: 0;
-    }
-
-    main {
-      max-width: 1000px;
+    .app {
+      width: 100%;
+      max-width: 900px;
       margin: auto;
-      padding: 16px;
     }
 
-    .panel {
-      background: #191e27;
-      border: 1px solid #343b47;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    h2 {
-      font-size: 18px;
-      margin-top: 0;
-    }
-
-    .tools {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    button {
-      border: 1px solid #465265;
-      border-radius: 9px;
-      background: #252d39;
-      color: white;
-      padding: 12px 6px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    button:active {
-      background: #40516b;
-    }
-
-    .icon {
-      display: block;
-      font-size: 25px;
-      margin-bottom: 6px;
+    h1 {
+      margin: 4px 0 16px;
+      text-align: center;
+      font-size: clamp(25px, 5vw, 36px);
+      font-weight: 600;
+      letter-spacing: 0.5px;
     }
 
     #viewer {
-      width: 100%;
-      height: 340px;
-      background: #080b10;
-      border-radius: 9px;
-      overflow: hidden;
       position: relative;
+      width: 100%;
+      height: clamp(300px, 58vw, 490px);
+      overflow: hidden;
+      background: #000;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      touch-action: none;
     }
 
     #viewer canvas {
       display: block;
       width: 100%;
       height: 100%;
-      touch-action: none;
     }
 
-    .controls {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+    .status {
+      margin: 9px 2px;
+      color: #a7a7a7;
+      font-size: 12px;
+      text-align: center;
+      min-height: 15px;
     }
 
-    label {
-      display: block;
-      font-size: 13px;
-      color: #c5cedb;
-      margin-bottom: 6px;
+    .section {
+      margin-top: 17px;
     }
 
-    input {
-      width: 100%;
-      padding: 11px;
-      border-radius: 7px;
-      border: 1px solid #465265;
-      background: #0e1219;
-      color: white;
+    .section-title {
+      margin-bottom: 10px;
       font-size: 16px;
+      font-weight: 600;
     }
 
-    .actions {
+    .dropdown {
+      position: relative;
+    }
+
+    #otherObjectsButton {
+      width: 100%;
+      padding: 13px 15px;
       display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #171717;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 8px;
+      font-size: 15px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    #objectMenu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 0;
+      right: 0;
+      z-index: 10;
+      background: #111;
+      border: 1px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #objectMenu.open {
+      display: block;
+    }
+
+    .object-option {
+      display: block;
+      width: 100%;
+      padding: 12px 15px;
+      color: #eee;
+      background: #111;
+      border: 0;
+      border-bottom: 1px solid #292929;
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .object-option:last-child {
+      border-bottom: 0;
+    }
+
+    .object-option:active,
+    .object-option:hover {
+      background: #292929;
+    }
+
+    .panel {
+      padding: 14px;
+      background: #101010;
+      border: 1px solid #292929;
+      border-radius: 10px;
+    }
+
+    .dimension-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
-      margin-top: 14px;
     }
 
-    .actions button {
+    .dimension-field label {
+      display: block;
+      margin-bottom: 7px;
+      color: #c8c8c8;
+      font-size: 12px;
+    }
+
+    .dimension-field input {
+      width: 100%;
+      min-width: 0;
+      padding: 11px 7px;
+      color: #fff;
+      background: #050505;
+      border: 1px solid #484848;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+
+    .unit {
+      margin-top: 8px;
+      color: #929292;
+      font-size: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .action-button {
       flex: 1;
+      min-width: 90px;
+      padding: 12px 10px;
+      border: 1px solid #555;
+      border-radius: 7px;
+      color: white;
+      background: #202020;
+      font-size: 13px;
+      cursor: pointer;
     }
 
-    #status {
-      color: #b8c5d6;
-      font-size: 13px;
-      line-height: 1.5;
+    .action-button.primary {
+      background: #e7e7e7;
+      border-color: #e7e7e7;
+      color: #000;
+      font-weight: 600;
+    }
+
+    .measurement {
+      margin-top: 13px;
+      padding: 12px;
+      background: #080808;
+      border: 1px solid #292929;
+      border-radius: 7px;
+      line-height: 1.7;
+      font-size: 14px;
       overflow-wrap: anywhere;
     }
 
+    .formula {
+      margin-top: 10px;
+      padding: 13px;
+      background: #101010;
+      border: 1px solid #292929;
+      border-radius: 8px;
+      line-height: 1.8;
+      color: #d8d8d8;
+      font-size: 13px;
+    }
+
+    .coming-soon {
+      margin-top: 22px;
+      color: #777;
+      font-size: 12px;
+      text-align: center;
+    }
+
     @media (max-width: 380px) {
-      #viewer {
-        height: 280px;
+      body {
+        padding-left: 8px;
+        padding-right: 8px;
       }
 
-      button {
-        font-size: 12px;
+      .panel {
+        padding: 10px;
+      }
+
+      .dimension-grid {
+        gap: 6px;
       }
     }
   </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js"
+      }
+    }
+  </script>
 </head>
 
 <body>
-  <header>
-    <h1>Virtual Lab</h1>
-    <p>Interactive 3D Science Laboratory</p>
-  </header>
+  <main class="app">
+    <h1>Vernier Caliper</h1>
 
-  <main>
-    <section class="panel">
-      <h2>Select an Object</h2>
+    <div id="viewer" aria-label="Interactive 3D Vernier caliper"></div>
+    <div class="status" id="status">Loading 3D model...</div>
 
-      <div class="tools">
-        <button data-shape="sphere">
-          <span class="icon">🔵</span>Sphere
+    <section class="section">
+      <div class="section-title">Objects</div>
+
+      <div class="dropdown">
+        <button id="otherObjectsButton" type="button" aria-expanded="false">
+          <span id="selectedObjectName">Other Objects — Sphere</span>
+          <span id="menuArrow">⌄</span>
         </button>
 
-        <button data-shape="cylinder">
-          <span class="icon">🥫</span>Cylinder
-        </button>
-
-        <button data-shape="cube">
-          <span class="icon">🧊</span>Cube
-        </button>
-
-        <button data-shape="cuboid">
-          <span class="icon">📦</span>Cuboid
-        </button>
-
-        <button data-shape="cone">
-          <span class="icon">🔺</span>Cone
-        </button>
-
-        <button id="caliperButton">
-          <span class="icon">📏</span>Vernier Caliper
-        </button>
+        <div id="objectMenu">
+          <button class="object-option" type="button" data-shape="sphere">Sphere</button>
+          <button class="object-option" type="button" data-shape="cube">Cube</button>
+          <button class="object-option" type="button" data-shape="cylinder">Cylinder</button>
+          <button class="object-option" type="button" data-shape="cuboid">Cuboid</button>
+          <button class="object-option" type="button" data-shape="cone">Cone</button>
+        </div>
       </div>
     </section>
 
-    <section class="panel">
-      <h2>3D Laboratory</h2>
-      <div id="viewer"></div>
+    <section class="section">
+      <div class="section-title">Object Dimensions</div>
 
-      <p id="status">Loading 3D laboratory...</p>
+      <div class="panel">
+        <div class="dimension-grid">
+          <div class="dimension-field">
+            <label id="labelA" for="dimensionA">Diameter</label>
+            <input id="dimensionA" type="number" min="1" max="200" step="1" value="20">
+          </div>
 
-      <div class="actions">
-        <button id="resetButton">Reset View</button>
-        <button id="removeButton">Remove Object</button>
+          <div class="dimension-field">
+            <label id="labelB" for="dimensionB">Height</label>
+            <input id="dimensionB" type="number" min="1" max="200" step="1" value="20">
+          </div>
+
+          <div class="dimension-field">
+            <label id="labelC" for="dimensionC">Depth</label>
+            <input id="dimensionC" type="number" min="1" max="200" step="1" value="20">
+          </div>
+        </div>
+
+        <div class="unit">Dimensions are in millimetres (mm).</div>
+
+        <div class="button-row">
+          <button class="action-button primary" id="updateButton" type="button">
+            Update Size
+          </button>
+
+          <button class="action-button" id="removeButton" type="button">
+            Remove Object
+          </button>
+
+          <button class="action-button" id="resetButton" type="button">
+            Reset View
+          </button>
+        </div>
+
+        <div class="measurement" id="measurement" aria-live="polite">
+          Selected object: Sphere<br>
+          Enter dimensions and select Update Size.
+        </div>
       </div>
     </section>
 
-    <section class="panel">
-      <h2>Object Dimensions (mm)</h2>
+    <section class="section">
+      <div class="section-title">Vernier Caliper Formula</div>
 
-      <div class="controls">
-        <div>
-          <label for="dimensionA">Radius / Length</label>
-          <input id="dimensionA" type="number"
-                 min="1" max="500" step="1" value="20">
-        </div>
-
-        <div>
-          <label for="dimensionB">Height / Width</label>
-          <input id="dimensionB" type="number"
-                 min="1" max="500" step="1" value="20">
-        </div>
-
-        <div>
-          <label for="dimensionC">Depth</label>
-          <input id="dimensionC" type="number"
-                 min="1" max="500" step="1" value="20">
-        </div>
+      <div class="formula">
+        <strong>Reading = Main Scale Reading + (Vernier Coincidence × Least Count)</strong>
+        <br>
+        <br>
+        <strong>Least Count = Value of 1 main-scale division ÷ Number of Vernier divisions</strong>
+        <br>
+        <br>
+        Example: Main scale = 12 mm, Vernier coincidence = 4, least count = 0.1 mm.
+        <br>
+        Reading = 12 + (4 × 0.1) = <strong>12.4 mm</strong>.
+        <br>
+        <br>
+        This example is a calculation, not a live measurement of the 3D model.
       </div>
-
-      <div class="actions">
-        <button id="updateButton">Update Size</button>
-      </div>
-
-      <p id="measurement">
-        Select a shape to begin.
-      </p>
     </section>
+
+    <div class="coming-soon">
+      More scientific instruments coming soon.
+    </div>
   </main>
-<div id="debug" style="color:white;padding:12px;overflow-wrap:anywhere">
-  Checking JavaScript...
-</div>
 
-<script>
-  window.addEventListener("error", function (event) {
-    document.getElementById("debug").textContent =
-      "JavaScript error: " + event.message;
-  });
-
-  window.addEventListener("unhandledrejection", function (event) {
-    document.getElementById("debug").textContent =
-      "Loading error: " + event.reason;
-  });
-</script>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
-  }
-}
-</script>
-
-<script type="module" src="./script.js?v=2"></script>
-
+  <script type="module" src="./script.js?v=11"></script>
 </body>
-  </html>
+            </html>
