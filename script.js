@@ -193,8 +193,12 @@ const animationDetails = gltf.animations.map(animation => {
 });
   scene.add(currentObject);
   frameObject(currentObject);
-
-  measurement.textContent =
+measurement.textContent =
+  'Meshes (' + meshNames.length + '): ' +
+  meshNames.join(', ') +
+  ' | Animation details: ' +
+  (animationDetails.join(' ; ') || 'None');
+  
     'Meshes (' + meshNames.length + '): ' +
     meshNames.join(', ') +
     ' | Animations: ' +
