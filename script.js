@@ -385,15 +385,6 @@ function loadCaliper() {
 
       frameCaliper(caliper);
       scene.add(caliper);
-
-      if (gltf.animations && gltf.animations.length > 0) {
-        caliperMixer = new THREE.AnimationMixer(caliper);
-
-        gltf.animations.forEach((clip) => {
-          caliperMixer.clipAction(clip).play();
-        });
-      }
-
       addObject("sphere");
 
       setStatus("3D caliper loaded. Drag to rotate; pinch to zoom.");
