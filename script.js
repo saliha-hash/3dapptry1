@@ -84,6 +84,9 @@ let caliper = null;
 let jawMixer = null;
 let jawAction = null;
 let jawClip = null;
+let jawSlider = null;
+let jawHint = null;
+
 let selectedShape = "sphere";
 let selectedObject = null;
 
@@ -99,6 +102,9 @@ const shapeNames = {
 };
 
 const MILLIMETRES_TO_SCENE_UNITS = 0.035;
+
+// Estimated position only; exact jaw coordinates still need calibration.
+const OBJECT_POSITION = new THREE.Vector3(-1.0, 0.15, 0.25);
 
 function setStatus(message) {
   statusText.textContent = message;
@@ -126,6 +132,14 @@ function disposeObject(root) {
       materials.forEach((material) => material.dispose());
     }
   });
+}
+
+function setJawSliderVisibility() {
+  const panel = document.getElementById("jawControlPanel");
+
+  if (panel) {
+    panel.style.display = selectedObject ? "none" : "block";
+  }
 }
 
 function setDimensionLabels(shape) {
@@ -180,21 +194,30 @@ function makeGeometry(shape, a, b, c) {
   return new THREE.SphereGeometry(A / 2, 48, 32);
 }
 
+function positionObjectInJaws() {
+  if (!selectedObject) return;
+
+  // This is an estimated location, not a calibrated jaw-gap measurement.
+  selectedObject.position.copy(OBJECT_POSITION);
+  selectedObject.updateMatrixWorld(true);
+}
+
 function addObject(shape) {
   selectedShape = shape;
 
   if (selectedObject) {
     objectGroup.remove(selectedObject);
     disposeObject(selectedObject);
+    selectedObject = null;
   }
 
   setDimensionLabels(shape);
 
-  dimensionA.value = shape === "cylinder" || shape === "cone"
-    ? 15 : 20;
+  dimensionA.value =
+    shape === "cylinder" || shape === "cone" ? 15 : 20;
 
-  dimensionB.value = shape === "cylinder" || shape === "cone"
-    ? 25 : 20;
+  dimensionB.value =
+    shape === "cylinder" || shape === "cone" ? 25 : 20;
 
   dimensionC.value = 20;
 
@@ -211,15 +234,18 @@ function addObject(shape) {
     makeMaterial()
   );
 
-  // Temporary position until the exact jaw gap is calibrated.
-  selectedObject.position.set(-1.0, 0.15, 0.25);
+  positionObjectInJaws();
   objectGroup.add(selectedObject);
 
+  setJawSliderVisibility();
   updateMeasurement();
 }
 
 function updateObjectSize() {
-  if (!selectedObject) return;
+  if (!selectedObject) {
+    measurement.textContent = "Select an object first.";
+    return;
+  }
 
   selectedObject.geometry.dispose();
 
@@ -230,6 +256,7 @@ function updateObjectSize() {
     readDimension(dimensionC)
   );
 
+  positionObjectInJaws();
   updateMeasurement();
 }
 
@@ -290,13 +317,12 @@ function makeJawSlider() {
   const panel = document.createElement("div");
   panel.id = "jawControlPanel";
   panel.style.cssText = `
-    position:absolute;
-    left:12px;
-    right:12px;
-    bottom:12px;
-    z-index:20;
+    position:relative;
+    width:100%;
+    box-sizing:border-box;
+    margin:12px 0;
     padding:12px;
-    background:rgba(15,20,30,.95);
+    background:#0f141e;
     border:1px solid #64748b;
     border-radius:12px;
     color:white;
@@ -308,34 +334,44 @@ function makeJawSlider() {
   label.style.display = "block";
   label.style.marginBottom = "8px";
 
-  const slider = document.createElement("input");
-  slider.type = "range";
-  slider.min = "0";
-  slider.max = "100";
-  slider.value = "0";
-  slider.style.width = "100%";
+  jawSlider = document.createElement("input");
+  jawSlider.type = "range";
+  jawSlider.min = "0";
+  jawSlider.max = "100";
+  jawSlider.step = "1";
+  jawSlider.value = "0";
+  jawSlider.style.width = "100%";
 
-  const hint = document.createElement("div");
-  hint.textContent = "Move the slider to test the model animation.";
-  hint.style.marginTop = "6px";
-  hint.style.color = "#cbd5e1";
+  jawHint = document.createElement("div");
+  jawHint.textContent = "Drag to open or close the jaws.";
+  jawHint.style.marginTop = "6px";
+  jawHint.style.color = "#cbd5e1";
 
-  panel.append(label, slider, hint);
-  viewer.appendChild(panel);
+  panel.append(label, jawSlider, jawHint);
 
-  slider.addEventListener("input", () => {
+  // Insert below the viewer, outside the 3D caliper box.
+  viewer.insertAdjacentElement("afterend", panel);
+
+  jawSlider.addEventListener("input", () => {
     if (!jawMixer || !jawAction || !jawClip) {
-      hint.textContent = "No model animation is available.";
+      jawHint.textContent = "No animation is available.";
       return;
     }
 
+    const progress = Number(jawSlider.value) / 100;
+
     jawAction.paused = false;
-    jawAction.time = Number(slider.value) / 100 * jawClip.duration;
+    jawAction.time = progress * jawClip.duration;
     jawMixer.update(0);
     jawAction.paused = true;
 
-    hint.textContent = `Animation position: ${slider.value}%`;
+    jawHint.textContent =
+      progress === 1
+        ? "End of model animation"
+        : `Jaw movement: ${jawSlider.value}%`;
   });
+
+  setJawSliderVisibility();
 }
 
 function loadCaliper() {
@@ -355,11 +391,6 @@ function loadCaliper() {
         if (child.material) {
           child.material.side = THREE.DoubleSide;
           child.material.needsUpdate = true;
-        }
-
-        // Temporarily hide the suspected stray part.
-        if (child.name === "Object_14") {
-          child.visible = false;
         }
       });
 
@@ -382,9 +413,7 @@ function loadCaliper() {
       makeJawSlider();
       addObject("sphere");
 
-      setStatus(
-        "3D caliper loaded. Test the jaw slider and rotate or zoom to inspect."
-      );
+      setStatus("Caliper loaded. Use the slider to move the jaws.");
     },
 
     undefined,
@@ -416,18 +445,21 @@ document.querySelectorAll(".object-option").forEach((button) => {
 updateButton.addEventListener("click", updateObjectSize);
 
 removeButton.addEventListener("click", () => {
-  if (!selectedObject) return;
+  if (selectedObject) {
+    objectGroup.remove(selectedObject);
+    disposeObject(selectedObject);
+    selectedObject = null;
+  }
 
-  objectGroup.remove(selectedObject);
-  disposeObject(selectedObject);
-  selectedObject = null;
   measurement.textContent = "Object removed.";
+  setJawSliderVisibility();
 });
 
 resetButton.addEventListener("click", () => {
   camera.position.set(0, 1.2, 9);
   controls.target.set(0, 0, 0);
   controls.update();
+
   setStatus(caliper ? "View reset." : "Waiting for caliper model.");
 });
 
