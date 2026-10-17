@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vernier Caliper | Science Lab</title>
+
+  <title>Vernier Calliper</title>
 
   <style>
     * {
@@ -12,36 +13,48 @@
 
     body {
       margin: 0;
-      padding: 18px 12px 30px;
-      background: #000;
+      padding: 18px;
+      background: #050505;
       color: #f5f5f5;
       font-family: Arial, sans-serif;
     }
 
     .app {
-      width: 100%;
-      max-width: 900px;
+      max-width: 1100px;
       margin: auto;
     }
 
     h1 {
-      margin: 4px 0 16px;
       text-align: center;
-      font-size: clamp(25px, 5vw, 36px);
-      font-weight: 600;
-      letter-spacing: 0.5px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-style: italic;
+      font-weight: bold;
+      font-size: clamp(30px, 5vw, 46px);
+      letter-spacing: 1px;
+      margin: 8px 0 20px;
+      background: linear-gradient(
+        110deg,
+        #ffffff,
+        #bfc8d0,
+        #ffffff
+      );
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
     }
 
-    /* 3D CALIPER VIEWER */
+    .viewer-box {
+      border: 1px solid #343434;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #080808;
+    }
 
     #viewer {
-      position: relative;
       width: 100%;
-      height: clamp(300px, 65vw, 520px);
-      overflow: hidden;
-      background: #000;
-      border: 1px solid #303030;
-      border-radius: 12px;
+      height: 430px;
+      position: relative;
+      background: #050505;
       touch-action: none;
     }
 
@@ -51,253 +64,189 @@
       height: 100%;
     }
 
-    /* JAW SLIDER SPACE OUTSIDE THE VIEWER */
-
-    #jawControlPanel {
-      width: 100%;
-      margin: 12px 0 0;
-      padding: 14px;
-      background: #101010;
+    .controls,
+    .card {
+      margin-top: 16px;
+      padding: 18px;
+      background: #111111;
       border: 1px solid #303030;
-      border-radius: 10px;
+      border-radius: 12px;
     }
 
-    #jawControlPanel[hidden] {
-      display: none !important;
+    h2 {
+      margin: 0 0 14px;
+      font-size: 19px;
+      color: #eeeeee;
     }
 
-    .jaw-heading {
+    .hint {
+      color: #a9a9a9;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .slider-row {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    #jawValue {
-      color: #bdbdbd;
-      font-size: 12px;
-      font-weight: normal;
+      gap: 12px;
     }
 
     #jawSlider {
-      display: block;
-      width: 100%;
-      margin: 12px 0;
-      accent-color: #e7e7e7;
+      flex: 1;
+      min-width: 0;
+      accent-color: #168cff;
       cursor: pointer;
+      height: 26px;
     }
 
-    .jaw-help {
-      color: #929292;
-      font-size: 12px;
-      line-height: 1.5;
+    #jawValue {
+      min-width: 48px;
+      text-align: right;
+      color: #59adff;
+      font-weight: bold;
     }
 
-    /* STATUS */
-
-    .status {
-      margin: 9px 2px;
-      color: #a7a7a7;
-      font-size: 12px;
-      text-align: center;
-      min-height: 15px;
-    }
-
-    /* SECTIONS */
-
-    .section {
-      margin-top: 17px;
-    }
-
-    .section-title {
-      margin-bottom: 10px;
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    /* OBJECT DROPDOWN */
-
-    .dropdown {
-      position: relative;
-    }
-
-    #otherObjectsButton {
-      width: 100%;
-      padding: 13px 15px;
+    .buttons {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #171717;
-      color: white;
-      border: 1px solid #444;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    button {
+      padding: 11px 15px;
+      background: #202020;
+      border: 1px solid #494949;
       border-radius: 8px;
-      font-size: 15px;
-      text-align: left;
+      color: white;
       cursor: pointer;
+    }
+
+    button:hover {
+      background: #303030;
+    }
+
+    .primary {
+      background: #126dcc;
+      border-color: #2788ee;
+    }
+
+    .primary:hover {
+      background: #1980eb;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 13px;
+      color: #c8c8c8;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 11px;
+      background: #080808;
+      color: white;
+      border: 1px solid #414141;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #168cff;
+    }
+
+    .object-menu {
+      position: relative;
     }
 
     #objectMenu {
       display: none;
-      position: absolute;
-      top: calc(100% + 5px);
-      left: 0;
-      right: 0;
-      z-index: 10;
-      background: #111;
+      margin-top: 8px;
+      padding: 8px;
+      background: #181818;
       border: 1px solid #444;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    #objectMenu.open {
-      display: block;
-    }
-
-    .object-option {
-      display: block;
-      width: 100%;
-      padding: 12px 15px;
-      color: #eee;
-      background: #111;
-      border: 0;
-      border-bottom: 1px solid #292929;
-      text-align: left;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .object-option:last-child {
-      border-bottom: 0;
-    }
-
-    .object-option:active,
-    .object-option:hover {
-      background: #292929;
-    }
-
-    /* DIMENSIONS */
-
-    .panel {
-      padding: 14px;
-      background: #101010;
-      border: 1px solid #292929;
       border-radius: 10px;
     }
 
-    .dimension-grid {
+    #objectMenu.open {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .dimension-field label {
-      display: block;
-      margin-bottom: 7px;
-      color: #c8c8c8;
-      font-size: 12px;
-    }
-
-    .dimension-field input {
-      width: 100%;
-      min-width: 0;
-      padding: 11px 7px;
-      color: #fff;
-      background: #050505;
-      border: 1px solid #484848;
-      border-radius: 6px;
-      font-size: 15px;
-    }
-
-    .unit {
-      margin-top: 8px;
-      color: #929292;
-      font-size: 12px;
-    }
-
-    /* BUTTONS */
-
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
-      margin-top: 13px;
     }
 
-    .action-button {
-      flex: 1;
-      min-width: 90px;
-      padding: 12px 10px;
-      border: 1px solid #555;
-      border-radius: 7px;
-      color: white;
-      background: #202020;
+    #objectMenu button {
+      text-align: left;
+    }
+
+    #status {
+      min-height: 20px;
+      margin-top: 12px;
+      color: #b9b9b9;
       font-size: 13px;
-      cursor: pointer;
+      line-height: 1.5;
     }
 
-    .action-button.primary {
-      background: #e7e7e7;
-      border-color: #e7e7e7;
-      color: #000;
-      font-weight: 600;
-    }
-
-    .action-button:active {
-      opacity: 0.8;
-    }
-
-    /* MEASUREMENT RESULT */
-
-    .measurement {
-      margin-top: 13px;
-      padding: 12px;
+    #measurement {
+      display: none;
+      margin-top: 16px;
+      padding: 15px;
+      border: 1px solid #454545;
+      border-radius: 10px;
       background: #080808;
-      border: 1px solid #292929;
-      border-radius: 7px;
-      line-height: 1.7;
-      font-size: 14px;
-      overflow-wrap: anywhere;
     }
 
-    /* FORMULA */
+    #measurement.show {
+      display: block;
+    }
+
+    .answer {
+      color: #70c1ff;
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
 
     .formula {
-      margin-top: 10px;
-      padding: 13px;
-      background: #101010;
-      border: 1px solid #292929;
-      border-radius: 8px;
       line-height: 1.8;
-      color: #d8d8d8;
-      font-size: 13px;
+      color: #d0d0d0;
     }
 
-    .coming-soon {
-      margin-top: 22px;
-      color: #777;
-      font-size: 12px;
-      text-align: center;
-    }
-
-    @media (max-width: 380px) {
+    @media (max-width: 600px) {
       body {
-        padding-left: 8px;
-        padding-right: 8px;
-      }
-
-      .panel {
         padding: 10px;
       }
 
-      .dimension-grid {
-        gap: 6px;
+      #viewer {
+        height: 350px;
       }
 
-      .action-button {
-        min-width: 85px;
+      .controls,
+      .card {
+        padding: 14px;
+      }
+
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        padding: 10px 12px;
       }
     }
   </style>
@@ -305,7 +254,8 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js"
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
       }
     }
   </script>
@@ -314,230 +264,132 @@
 <body>
   <main class="app">
 
-    <h1>Vernier Caliper</h1>
+    <h1>Vernier Calliper</h1>
 
-    <!-- 3D MODEL -->
-    <div
-      id="viewer"
-      aria-label="Interactive 3D Vernier caliper">
+    <div class="viewer-box">
+      <div id="viewer"></div>
     </div>
 
-    <!-- JAW SLIDER: OUTSIDE THE VIEWER -->
-    <div id="jawControlPanel" hidden>
-      <div class="jaw-heading">
-        <span>Move Caliper Jaws</span>
-        <span id="jawValue">Closed</span>
+    <section class="controls">
+      <h2>Jaw Control</h2>
+
+      <p class="hint">
+        Move the blue slider to open or close the jaws.
+        Moving it to the right increases the opening.
+        Drag the model to rotate it and pinch to zoom.
+      </p>
+
+      <div class="slider-row">
+        <span>Closed</span>
+
+        <input
+          id="jawSlider"
+          type="range"
+          min="0"
+          max="100"
+          value="0"
+          step="1"
+          aria-label="Jaw opening"
+        >
+
+        <span>Open</span>
+        <span id="jawValue">0%</span>
       </div>
 
-      <input
-        id="jawSlider"
-        type="range"
-        min="0"
-        max="100"
-        value="0"
-        step="1"
-        aria-label="Adjust Vernier caliper jaw opening">
-
-      <div class="jaw-help">
-        Move the slider to open or close the jaws.
-        Select an object to hide this control.
+      <div class="buttons">
+        <button id="closeJawsButton">Close Jaws</button>
+        <button id="openJawsButton" class="primary">
+          Open Jaws Fully
+        </button>
       </div>
-    </div>
+    </section>
 
-    <div class="status" id="status">
-      Loading 3D model...
-    </div>
+    <section class="controls">
+      <h2>Objects</h2>
 
-    <!-- OBJECT SELECTION -->
-    <section class="section">
-      <div class="section-title">Objects</div>
+      <p class="hint">
+        Choose an object to place it near the measuring jaws.
+        Objects are silver and are not added automatically.
+      </p>
 
-      <div class="dropdown">
-        <button
-          id="otherObjectsButton"
-          type="button"
-          aria-expanded="false">
-
-          <span id="selectedObjectName">
-            Other Objects — Sphere
-          </span>
-
-          <span id="menuArrow">⌄</span>
+      <div class="object-menu">
+        <button id="otherObjectsButton" class="primary">
+          + Add Object <span id="menuArrow">⌄</span>
         </button>
 
         <div id="objectMenu">
-          <button
-            class="object-option"
-            type="button"
-            data-shape="sphere">
-            Sphere
-          </button>
-
-          <button
-            class="object-option"
-            type="button"
-            data-shape="cube">
-            Cube
-          </button>
-
-          <button
-            class="object-option"
-            type="button"
-            data-shape="cylinder">
-            Cylinder
-          </button>
-
-          <button
-            class="object-option"
-            type="button"
-            data-shape="cuboid">
-            Cuboid
-          </button>
-
-          <button
-            class="object-option"
-            type="button"
-            data-shape="cone">
-            Cone
-          </button>
+          <button data-shape="sphere">Sphere</button>
+          <button data-shape="cube">Cube</button>
+          <button data-shape="cylinder">Cylinder</button>
+          <button data-shape="cuboid">Cuboid</button>
+          <button data-shape="cone">Cone</button>
         </div>
+      </div>
+
+      <p id="selectedObjectName" class="hint">
+        No object selected
+      </p>
+
+      <div class="field-grid">
+        <div>
+          <label id="labelA" for="dimensionA">Length (mm)</label>
+          <input id="dimensionA" type="number" min="1" max="100" value="20">
+        </div>
+
+        <div>
+          <label id="labelB" for="dimensionB">Width (mm)</label>
+          <input id="dimensionB" type="number" min="1" max="100" value="20">
+        </div>
+
+        <div>
+          <label id="labelC" for="dimensionC">Height (mm)</label>
+          <input id="dimensionC" type="number" min="1" max="100" value="20">
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="updateButton" class="primary">
+          Update Dimensions
+        </button>
+
+        <button id="removeButton">
+          Remove Object
+        </button>
+
+        <button id="resetButton">
+          Reset
+        </button>
+      </div>
+
+      <div id="status" role="status">
+        Loading the Vernier Calliper model...
+      </div>
+
+      <div id="measurement">
+        <h2>Measurement</h2>
+        <div id="measurementDetails"></div>
+        <div id="measurementAnswer" class="answer"></div>
       </div>
     </section>
 
-    <!-- OBJECT DIMENSIONS -->
-    <section class="section">
-      <div class="section-title">Object Dimensions</div>
-
-      <div class="panel">
-
-        <div class="dimension-grid">
-
-          <div class="dimension-field">
-            <label id="labelA" for="dimensionA">
-              Diameter
-            </label>
-
-            <input
-              id="dimensionA"
-              type="number"
-              min="1"
-              max="200"
-              step="1"
-              value="20">
-          </div>
-
-          <div class="dimension-field">
-            <label id="labelB" for="dimensionB">
-              Height
-            </label>
-
-            <input
-              id="dimensionB"
-              type="number"
-              min="1"
-              max="200"
-              step="1"
-              value="20">
-          </div>
-
-          <div class="dimension-field">
-            <label id="labelC" for="dimensionC">
-              Depth
-            </label>
-
-            <input
-              id="dimensionC"
-              type="number"
-              min="1"
-              max="200"
-              step="1"
-              value="20">
-          </div>
-
-        </div>
-
-        <div class="unit">
-          Dimensions are in millimetres (mm).
-        </div>
-
-        <div class="button-row">
-          <button
-            class="action-button primary"
-            id="updateButton"
-            type="button">
-            Update Size
-          </button>
-
-          <button
-            class="action-button"
-            id="removeButton"
-            type="button">
-            Remove Object
-          </button>
-
-          <button
-            class="action-button"
-            id="resetButton"
-            type="button">
-            Reset View
-          </button>
-        </div>
-
-        <div
-          class="measurement"
-          id="measurement"
-          aria-live="polite">
-
-          Selected object: Sphere<br>
-          Enter dimensions and select Update Size.
-
-        </div>
-      </div>
-    </section>
-
-    <!-- VERNIER CALIPER FORMULA -->
-    <section class="section">
-      <div class="section-title">
-        Vernier Caliper Formula
-      </div>
+    <section class="card">
+      <h2>Vernier Calliper Formula</h2>
 
       <div class="formula">
-        <strong>
-          Reading = Main Scale Reading +
-          (Vernier Coincidence × Least Count)
-        </strong>
-
-        <br><br>
-
-        <strong>
-          Least Count = Value of 1 main-scale division
-          ÷ Number of Vernier divisions
-        </strong>
-
-        <br><br>
-
-        Example: Main scale = 12 mm,
-        Vernier coincidence = 4,
-        least count = 0.1 mm.
-
+        <strong>Reading = Main Scale Reading + Vernier Scale Reading</strong>
         <br>
-
-        Reading = 12 + (4 × 0.1) =
-        <strong>12.4 mm</strong>.
-
-        <br><br>
-
-        This example is a calculation, not a live
-        measurement of the 3D model.
+        Vernier Scale Reading = Coinciding Vernier Division × Least Count
       </div>
-    </section>
 
-    <div class="coming-soon">
-      More scientific instruments coming soon.
-    </div>
+      <p class="hint">
+        The 3D object dimensions are the values entered in the controls.
+        They are not an automatic optical reading from the model's
+        engraved scale.
+      </p>
+    </section>
 
   </main>
 
-  <script type="module" src="./script.js?v=12"></script>
+  <script type="module" src="./script.js?v=13"></script>
 </body>
-  </html>
+      </html>
