@@ -390,10 +390,100 @@ function loadCaliper() {
             child.material.side = THREE.DoubleSide;
             child.material.needsUpdate = true;
           }
-        }
-      })
-      caliper.updateMatrixWorld(true);
 
+          // Temporarily hide the suspected stray black circle.
+          if (child.name === "Object_14") {
+            child.visible = false;
+          }
+        }
+      });
+
+      frameCaliper(caliper);
+      scene.add(caliper);
+
+      // Add a manual slider for the model's existing animation.
+      const viewer = document.getElementById("viewer");
+
+      const panel = document.createElement("div");
+      panel.style.cssText = `
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        z-index: 20;
+        padding: 12px;
+        background: rgba(15, 20, 30, 0.95);
+        border: 1px solid #64748b;
+        border-radius: 12px;
+        color: white;
+        font: 14px Arial, sans-serif;
+      `;
+
+      const label = document.createElement("label");
+      label.textContent = "Jaw movement";
+      label.style.display = "block";
+      label.style.marginBottom = "8px";
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0";
+      slider.max = "100";
+      slider.value = "50";
+      slider.style.width = "100%";
+
+      const hint = document.createElement("div");
+      hint.textContent = "Drag to move the caliper animation";
+      hint.style.marginTop = "6px";
+      hint.style.color = "#cbd5e1";
+
+      panel.append(label, slider, hint);
+      viewer.appendChild(panel);
+
+      // Use the model's existing animation.
+      if (gltf.animations && gltf.animations.length > 0) {
+        const clip = gltf.animations[0];
+        const jawMixer = new THREE.AnimationMixer(caliper);
+        const jawAction = jawMixer.clipAction(clip);
+
+        jawAction.setLoop(THREE.LoopOnce, 1);
+        jawAction.clampWhenFinished = true;
+        jawAction.play();
+        jawAction.paused = true;
+
+        function moveJaws() {
+          const progress = Number(slider.value) / 100;
+
+          jawAction.time = progress * clip.duration;
+          jawMixer.update(0);
+
+          hint.textContent =
+            `Jaw movement: ${Math.round(progress * 100)}%`;
+        }
+
+        slider.addEventListener("input", moveJaws);
+        moveJaws();
+      } else {
+        hint.textContent = "No animation was found in the model.";
+      }
+
+      // Add the sphere and place it near the caliper's jaw area.
+      addObject("sphere");
+
+      if (typeof selectedObject !== "undefined" && selectedObject) {
+        selectedObject.position.set(-1.1, -0.1, 0.48);
+      }
+
+      setStatus("Caliper loaded. Use the slider to test jaw movement.");
+    },
+
+    undefined,
+
+    (error) => {
+      console.error("Caliper model loading failed:", error);
+      setStatus("The 3D model could not load. Refresh and try again.");
+    }
+  );
+    }
 const debugLines = [];
 
 caliper.traverse((child) => {
