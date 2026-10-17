@@ -10,7 +10,6 @@ const FACE_X=-1.521;
 const FACE_Z=0.366;
 const ROOT_Y=-0.17;
 const TRAVEL=3.47;
-const RULER_PX_PER_MM=2.903;
 const MOVING=["cube004_2","cylinder_3"];
 const HIDE=["circle_4","cylinder001_5"];
 const $=id=>document.getElementById(id);
@@ -25,22 +24,23 @@ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.35;
+renderer.toneMappingExposure=1.0;
 renderer.setClearColor(0x000000,1);
 renderer.domElement.style.display="block";
 viewer.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xe8edf5,0x292d33,2.0));
+scene.add(new THREE.HemisphereLight(0xd5dce5,0x17191d,1.15));
 
 function light(color,intensity,x,y,z){
   const l=new THREE.DirectionalLight(color,intensity);
   l.position.set(x,y,z);
   scene.add(l);
 }
-light(0xffffff,4,3,5,6);
-light(0xdce8ff,2,-4,2,3);
-light(0xffffff,3,0,4,-5);
-light(0xb8c6d8,1.4,5,-2,-3);
+
+light(0xffffff,2.4,3,5,6);
+light(0xc3d0e0,1.1,-4,2,3);
+light(0xffffff,1.8,0,4,-5);
+light(0x8293a8,0.65,5,-2,-3);
 
 const pmrem=new THREE.PMREMGenerator(renderer);
 const environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
@@ -48,10 +48,10 @@ scene.environment=environment;
 pmrem.dispose();
 
 const silver=new THREE.MeshStandardMaterial({
-  color:0xdce1e7,
-  metalness:0.92,
-  roughness:0.19,
-  envMapIntensity:1.8
+  color:0xaeb7c1,
+  metalness:0.88,
+  roughness:0.27,
+  envMapIntensity:1.25
 });
 
 const controls=new OrbitControls(camera,renderer.domElement);
@@ -71,7 +71,6 @@ controls.addEventListener("start",()=>{moved=true});
 
 let rig=null,slider=null,ready=false;
 let W=6,H=2.5,fly=null,shape=null,obj=null;
-const v3=new THREE.Vector3();
 
 new GLTFLoader().load(
   MODEL,
@@ -89,31 +88,6 @@ new GLTFLoader().load(
   }
 );
 
-function fixRuler(mesh){
-  mesh.updateWorldMatrix(true,false);
-  const mw=mesh.matrixWorld;
-  const inv=mw.clone().invert();
-  const p=mesh.geometry.attributes.position;
-  const uv=mesh.geometry.attributes.uv;
-  if(!uv)return;
-
-  for(let i=0;i<p.count;i++){
-    v3.fromBufferAttribute(p,i).applyMatrix4(mw);
-    v3.x=Math.max(v3.x,ZERO_X);
-    uv.setX(
-      i,
-      (35+RULER_PX_PER_MM*MM_PER_UNIT*(v3.x-ZERO_X))/1024
-    );
-    v3.applyMatrix4(inv);
-    p.setXYZ(i,v3.x,v3.y,v3.z);
-  }
-
-  p.needsUpdate=true;
-  uv.needsUpdate=true;
-  mesh.geometry.computeBoundingBox();
-  mesh.geometry.computeBoundingSphere();
-}
-
 function setup(model){
   rig=new THREE.Group();
   rig.add(model);
@@ -121,6 +95,7 @@ function setup(model){
   rig.updateMatrixWorld(true);
 
   const parts=[];
+
   model.traverse(o=>{
     if(!o.name)return;
     const n=o.name.toLowerCase();
@@ -134,11 +109,18 @@ function setup(model){
 
     if(o.isMesh){
       o.frustumCulled=false;
+
       if(o.material){
         const mats=Array.isArray(o.material)?o.material:[o.material];
+
         mats.forEach(m=>{
           m.side=THREE.DoubleSide;
-          if(m.map)m.map.colorSpace=THREE.SRGBColorSpace;
+
+          if(m.map){
+            m.map.colorSpace=THREE.SRGBColorSpace;
+            m.map.needsUpdate=true;
+          }
+
           m.needsUpdate=true;
         });
       }
@@ -149,23 +131,28 @@ function setup(model){
     throw new Error("Moving jaw parts not found. Check the GLB mesh names.");
   }
 
-  const ruler=model.getObjectByName("Object_4");
-  if(ruler)fixRuler(ruler);
+  // Preserve the original Sketchfab ruler texture.
+  // No UV remapping is applied, preventing changes to its markings.
 
   slider=new THREE.Group();
   rig.add(slider);
   parts.forEach(o=>slider.attach(o));
 
   const fit=new THREE.Box3();
+
   model.traverse(o=>{
     if(!o.isMesh)return;
+
     for(let p=o;p;p=p.parent){
       if(!p.visible)return;
     }
+
     fit.union(new THREE.Box3().setFromObject(o));
   });
 
-  if(fit.isEmpty())throw new Error("The model contains no visible meshes.");
+  if(fit.isEmpty()){
+    throw new Error("The model contains no visible meshes.");
+  }
 
   const size=fit.getSize(new THREE.Vector3());
   W=size.x;
@@ -202,7 +189,9 @@ function go(pos,tgt,instant=false){
 
 function viewFull(instant=false){
   if(!ready)return;
+
   const span=Math.max(W/camera.aspect,H)*1.12;
+
   go(
     new THREE.Vector3(0,0,dist(span)+0.15),
     new THREE.Vector3(0,0,0),
@@ -214,11 +203,13 @@ function viewJaws(){
   if(!ready)return;
 
   const gap=slider.position.x;
+
   const c=rig.localToWorld(
     new THREE.Vector3(FACE_X+gap/2,-0.55,FACE_Z)
   );
 
   const d=dist(Math.max(1.6,(gap+0.65)/camera.aspect));
+
   go(new THREE.Vector3(c.x,c.y+0.08,c.z+d),c);
 }
 
@@ -236,27 +227,32 @@ $("jawSlider").addEventListener("input",()=>{
 
 const SHAPES={
   sphere:{
-    f:["Diameter"],max:60,
+    f:["Diameter"],
+    max:60,
     geo:a=>new THREE.SphereGeometry(a/2,64,48),
     h:a=>a
   },
   cube:{
-    f:["Side"],max:100,
+    f:["Side"],
+    max:100,
     geo:a=>new THREE.BoxGeometry(a,a,a),
     h:a=>a
   },
   cylinder:{
-    f:["Diameter","Height"],max:100,
+    f:["Diameter","Height"],
+    max:100,
     geo:(a,b)=>new THREE.CylinderGeometry(a/2,a/2,b,64),
     h:(a,b)=>b
   },
   cuboid:{
-    f:["Length","Width","Height"],max:100,
+    f:["Length","Width","Height"],
+    max:100,
     geo:(a,b,c)=>new THREE.BoxGeometry(a,c,b),
     h:(a,b,c)=>c
   },
   cone:{
-    f:["Base diameter","Height"],max:100,
+    f:["Base diameter","Height"],
+    max:100,
     geo:(a,b)=>new THREE.ConeGeometry(a/2,b,64),
     h:(a,b)=>b
   }
@@ -265,6 +261,7 @@ const SHAPES={
 function readDims(){
   const sh=SHAPES[shape];
   const d=sh.f.map((_,i)=>parseFloat($("dim"+"ABC"[i]).value));
+
   const limit=Math.min(sh.max,Math.floor(TRAVEL*MM_PER_UNIT));
 
   if(d.some(x=>!Number.isFinite(x)||x<1||x>sh.max)){
@@ -297,12 +294,20 @@ function place(){
 
   const h=sh.h(...v);
   const top=shape==="cone"?ROOT_Y-0.05:ROOT_Y;
+
   let y=top-h/2;
 
-  if(shape==="sphere")y=Math.max(y,-1.05);
+  if(shape==="sphere"){
+    y=Math.max(y,-1.05);
+  }
 
   obj.rotation.set(0,0,shape==="cone"?Math.PI:0);
-  obj.position.set(FACE_X+v[0]/2,y,FACE_Z);
+
+  obj.position.set(
+    FACE_X+v[0]/2,
+    y,
+    FACE_Z
+  );
 
   $("measurementAnswer").textContent=
     sh.f.map((n,i)=>n+": "+d[i]+" mm").join(", ");
@@ -330,6 +335,7 @@ function selectShape(s){
 
   "ABC".split("").forEach((k,i)=>{
     const on=i<SHAPES[s].f.length;
+
     $("field"+k).hidden=!on;
 
     if(on){
@@ -361,6 +367,7 @@ function removeObject(){
   slider.position.x=Math.min(TRAVEL,Math.max(0,slider.position.x));
 
   const pct=Math.round(slider.position.x/TRAVEL*100);
+
   $("jawSlider").value=pct;
   $("jawValue").textContent=pct+"%";
 
@@ -387,7 +394,9 @@ new ResizeObserver(()=>{
   camera.updateProjectionMatrix();
   renderer.setSize(w,h,false);
 
-  if(ready&&!moved)viewFull(true);
+  if(ready&&!moved){
+    viewFull(true);
+  }
 }).observe(viewer);
 
 function animate(now){
