@@ -391,9 +391,35 @@ function loadCaliper() {
             child.material.needsUpdate = true;
           }
         }
-      });
+      })
+      caliper.updateMatrixWorld(true);
 
-      frameCaliper(caliper);
+const debugLines = [];
+
+caliper.traverse((child) => {
+  if (child.isMesh) {
+    const box = new THREE.Box3().setFromObject(child);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    debugLines.push(
+      `${child.name}: center (${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}), size (${size.x.toFixed(2)}, ${size.y.toFixed(2)}, ${size.z.toFixed(2)})`
+    );
+  }
+});
+
+(gltf.animations || []).forEach((clip) => {
+  debugLines.push(`ANIMATION: ${clip.name}, duration: ${clip.duration}`);
+
+  clip.tracks.forEach((track) => {
+    debugLines.push(`TRACK: ${track.name}`);
+  });
+});
+
+window.prompt(
+  "Copy this information and send it to ChatGPT:",
+  debugLines.join("\n")
+);
       scene.add(caliper);
       addObject("sphere");
 
