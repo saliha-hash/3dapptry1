@@ -11,49 +11,62 @@
       box-sizing: border-box;
     }
 
+    :root {
+      color-scheme: dark;
+      --background: #080808;
+      --panel: #131313;
+      --border: #333333;
+      --text: #eeeeee;
+      --muted: #aaaaaa;
+      --silver: #c8c8c8;
+    }
+
     body {
       margin: 0;
       padding: 18px;
-      background: #050505;
-      color: #f5f5f5;
-      font-family: Arial, sans-serif;
+      background: var(--background);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     .app {
-      max-width: 1100px;
+      width: 100%;
+      max-width: 1050px;
       margin: auto;
     }
 
-    h1 {
+    header {
       text-align: center;
+      margin: 5px 0 22px;
+    }
+
+    h1 {
+      margin: 0;
       font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(30px, 5vw, 44px);
       font-style: italic;
-      font-weight: bold;
-      font-size: clamp(30px, 5vw, 46px);
+      font-weight: 600;
       letter-spacing: 1px;
-      margin: 8px 0 20px;
-      background: linear-gradient(
-        110deg,
-        #ffffff,
-        #bfc8d0,
-        #ffffff
-      );
-      background-clip: text;
-      -webkit-background-clip: text;
-      color: transparent;
+      color: #dedede;
+    }
+
+    .heading-line {
+      width: 58px;
+      height: 1px;
+      margin: 13px auto 0;
+      background: #777777;
     }
 
     .viewer-box {
-      border: 1px solid #343434;
-      border-radius: 14px;
       overflow: hidden;
-      background: #080808;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: #050505;
     }
 
     #viewer {
       width: 100%;
-      height: 430px;
-      position: relative;
+      height: 420px;
       background: #050505;
       touch-action: none;
     }
@@ -64,23 +77,23 @@
       height: 100%;
     }
 
-    .controls,
-    .card {
-      margin-top: 16px;
-      padding: 18px;
-      background: #111111;
-      border: 1px solid #303030;
-      border-radius: 12px;
+    .panel {
+      margin-top: 15px;
+      padding: 17px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
     }
 
     h2 {
-      margin: 0 0 14px;
-      font-size: 19px;
-      color: #eeeeee;
+      margin: 0 0 12px;
+      font-size: 17px;
+      font-weight: 600;
     }
 
-    .hint {
-      color: #a9a9a9;
+    .description {
+      margin: 0 0 13px;
+      color: var(--muted);
       font-size: 13px;
       line-height: 1.6;
     }
@@ -88,127 +101,135 @@
     .slider-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
+      gap: 9px;
+      color: #bdbdbd;
+      font-size: 12px;
     }
 
     #jawSlider {
       flex: 1;
       min-width: 0;
-      accent-color: #168cff;
+      max-width: 290px;
+      height: 17px;
+      margin: 0;
+      accent-color: #c8c8c8;
       cursor: pointer;
-      height: 26px;
     }
 
     #jawValue {
-      min-width: 48px;
+      min-width: 32px;
       text-align: right;
-      color: #59adff;
-      font-weight: bold;
+      color: #dddddd;
+      font-size: 12px;
     }
 
-    .buttons {
+    .button-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    button,
-    select,
-    input {
-      font: inherit;
+      gap: 9px;
+      margin-top: 13px;
     }
 
     button {
-      padding: 11px 15px;
-      background: #202020;
-      border: 1px solid #494949;
-      border-radius: 8px;
-      color: white;
+      min-height: 37px;
+      padding: 9px 13px;
+      border: 1px solid #484848;
+      border-radius: 7px;
+      background: #242424;
+      color: #eeeeee;
+      font-size: 13px;
       cursor: pointer;
     }
 
     button:hover {
-      background: #303030;
+      background: #373737;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 1px solid #c8c8c8;
+      outline-offset: 2px;
     }
 
     .primary {
-      background: #126dcc;
-      border-color: #2788ee;
+      background: #303030;
+      border-color: #666666;
     }
 
     .primary:hover {
-      background: #1980eb;
-    }
-
-    .field-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 14px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 7px;
-      font-size: 13px;
-      color: #c8c8c8;
-    }
-
-    input,
-    select {
-      width: 100%;
-      padding: 11px;
-      background: #080808;
-      color: white;
-      border: 1px solid #414141;
-      border-radius: 8px;
-      outline: none;
-    }
-
-    input:focus,
-    select:focus {
-      border-color: #168cff;
-    }
-
-    .object-menu {
-      position: relative;
+      background: #414141;
     }
 
     #objectMenu {
       display: none;
-      margin-top: 8px;
-      padding: 8px;
-      background: #181818;
-      border: 1px solid #444;
-      border-radius: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 9px;
+      padding: 9px;
+      border: 1px solid #383838;
+      border-radius: 8px;
+      background: #090909;
     }
 
     #objectMenu.open {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
     }
 
     #objectMenu button {
       text-align: left;
     }
 
-    #status {
-      min-height: 20px;
-      margin-top: 12px;
-      color: #b9b9b9;
+    #selectedObjectName {
+      margin: 12px 0 0;
+      color: #c0c0c0;
       font-size: 13px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #c8c8c8;
+      font-size: 12px;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid #414141;
+      border-radius: 7px;
+      background: #080808;
+      color: #eeeeee;
+      font-size: 14px;
+    }
+
+    input:disabled {
+      opacity: 0.45;
+    }
+
+    #status {
+      min-height: 18px;
+      margin-top: 13px;
+      color: #bdbdbd;
+      font-size: 12px;
       line-height: 1.5;
     }
 
     #measurement {
       display: none;
-      margin-top: 16px;
-      padding: 15px;
-      border: 1px solid #454545;
-      border-radius: 10px;
-      background: #080808;
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid #444444;
+      border-radius: 8px;
+      background: #090909;
     }
 
     #measurement.show {
@@ -216,15 +237,16 @@
     }
 
     .answer {
-      color: #70c1ff;
-      font-size: 24px;
-      font-weight: bold;
       margin-top: 8px;
+      color: #eeeeee;
+      font-size: 23px;
+      font-weight: 600;
     }
 
     .formula {
-      line-height: 1.8;
       color: #d0d0d0;
+      font-size: 14px;
+      line-height: 1.9;
     }
 
     @media (max-width: 600px) {
@@ -233,20 +255,15 @@
       }
 
       #viewer {
-        height: 350px;
+        height: 340px;
       }
 
-      .controls,
-      .card {
+      .panel {
         padding: 14px;
       }
 
       .field-grid {
         grid-template-columns: 1fr;
-      }
-
-      button {
-        padding: 10px 12px;
       }
     }
   </style>
@@ -264,19 +281,21 @@
 <body>
   <main class="app">
 
-    <h1>Vernier Calliper</h1>
+    <header>
+      <h1>Vernier Calliper</h1>
+      <div class="heading-line"></div>
+    </header>
 
     <div class="viewer-box">
       <div id="viewer"></div>
     </div>
 
-    <section class="controls">
-      <h2>Jaw Control</h2>
+    <section class="panel" id="jawControlPanel">
+      <h2>Jaw Opening</h2>
 
-      <p class="hint">
-        Move the blue slider to open or close the jaws.
-        Moving it to the right increases the opening.
-        Drag the model to rotate it and pinch to zoom.
+      <p class="description">
+        Move the slider to the right to open the jaws.
+        Move it to the left to close them.
       </p>
 
       <div class="slider-row">
@@ -296,43 +315,39 @@
         <span id="jawValue">0%</span>
       </div>
 
-      <div class="buttons">
+      <div class="button-row">
         <button id="closeJawsButton">Close Jaws</button>
         <button id="openJawsButton" class="primary">
-          Open Jaws Fully
+          Open Fully
         </button>
       </div>
     </section>
 
-    <section class="controls">
-      <h2>Objects</h2>
+    <section class="panel">
+      <h2>Measure an Object</h2>
 
-      <p class="hint">
-        Choose an object to place it near the measuring jaws.
-        Objects are silver and are not added automatically.
+      <p class="description">
+        Select an object to place it near the measuring jaws.
+        No object is added automatically.
       </p>
 
-      <div class="object-menu">
-        <button id="otherObjectsButton" class="primary">
-          + Add Object <span id="menuArrow">⌄</span>
-        </button>
+      <button id="otherObjectsButton" class="primary">
+        + Add Object <span id="menuArrow">⌄</span>
+      </button>
 
-        <div id="objectMenu">
-          <button data-shape="sphere">Sphere</button>
-          <button data-shape="cube">Cube</button>
-          <button data-shape="cylinder">Cylinder</button>
-          <button data-shape="cuboid">Cuboid</button>
-          <button data-shape="cone">Cone</button>
-        </div>
+      <div id="objectMenu">
+        <button data-shape="sphere">Sphere</button>
+        <button data-shape="cube">Cube</button>
+        <button data-shape="cylinder">Cylinder</button>
+        <button data-shape="cuboid">Cuboid</button>
+        <button data-shape="cone">Cone</button>
       </div>
 
-      <p id="selectedObjectName" class="hint">
-        No object selected
-      </p>
+      <p id="selectedObjectName">No object selected</p>
 
       <div class="field-grid">
         <div>
-          <label id="labelA" for="dimensionA">Length (mm)</label>
+          <label id="labelA" for="dimensionA">Diameter (mm)</label>
           <input id="dimensionA" type="number" min="1" max="100" value="20">
         </div>
 
@@ -347,7 +362,7 @@
         </div>
       </div>
 
-      <div class="buttons">
+      <div class="button-row">
         <button id="updateButton" class="primary">
           Update Dimensions
         </button>
@@ -362,34 +377,33 @@
       </div>
 
       <div id="status" role="status">
-        Loading the Vernier Calliper model...
+        Loading model...
       </div>
 
       <div id="measurement">
-        <h2>Measurement</h2>
+        <h2>Entered Dimensions</h2>
         <div id="measurementDetails"></div>
         <div id="measurementAnswer" class="answer"></div>
       </div>
     </section>
 
-    <section class="card">
+    <section class="panel">
       <h2>Vernier Calliper Formula</h2>
 
       <div class="formula">
         <strong>Reading = Main Scale Reading + Vernier Scale Reading</strong>
         <br>
-        Vernier Scale Reading = Coinciding Vernier Division × Least Count
+        Vernier Scale Reading = Coinciding Division × Least Count
       </div>
 
-      <p class="hint">
-        The 3D object dimensions are the values entered in the controls.
-        They are not an automatic optical reading from the model's
-        engraved scale.
+      <p class="description" style="margin-top: 10px; margin-bottom: 0;">
+        The displayed dimensions are the values entered for the 3D object.
+        They are not automatically detected readings from the engraved scale.
       </p>
     </section>
 
   </main>
 
-  <script type="module" src="./script.js?v=13"></script>
+  <script type="module" src="./script.js?v=14"></script>
 </body>
-      </html>
+  </html>
