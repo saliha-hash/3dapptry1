@@ -1,353 +1,410 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
-const $ = id => document.getElementById(id);
-const viewer = $("viewer");
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050505);
+const MODEL="./verniercaliper.glb";
+const MM_PER_UNIT=31.27;
+const ZERO_X=-1.1227;
+const FACE_X=-1.521;
+const FACE_Z=0.366;
+const ROOT_Y=-0.17;
+const TRAVEL=3.47;
+const RULER_PX_PER_MM=2.903;
+const MOVING=["cube004_2","cylinder_3"];
+const HIDE=["circle_4","cylinder001_5"];
+const $=id=>document.getElementById(id);
+const say=t=>{$("status").textContent=t};
+const viewer=$("viewer");
 
-const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.4;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x000000);
+
+const camera=new THREE.PerspectiveCamera(30,1,0.01,1000);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.35;
+renderer.setClearColor(0x000000,1);
+renderer.domElement.style.display="block";
 viewer.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 2.2));
+scene.add(new THREE.HemisphereLight(0xe8edf5,0x292d33,2.0));
 
-function light(power, position) {
-  const lamp = new THREE.DirectionalLight(0xffffff, power);
-  lamp.position.set(...position);
-  scene.add(lamp);
+function light(color,intensity,x,y,z){
+  const l=new THREE.DirectionalLight(color,intensity);
+  l.position.set(x,y,z);
+  scene.add(l);
 }
-light(3.5, [4, 6, 7]);
-light(2.5, [-5, 3, 4]);
-light(2, [0, -3, -5]);
+light(0xffffff,4,3,5,6);
+light(0xdce8ff,2,-4,2,3);
+light(0xffffff,3,0,4,-5);
+light(0xb8c6d8,1.4,5,-2,-3);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 1;
-controls.maxDistance = 30;
+const pmrem=new THREE.PMREMGenerator(renderer);
+const environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+scene.environment=environment;
+pmrem.dispose();
 
-let caliper = null;
-let movableJaw = null;
-let originalJawX = 0;
-let selectedObject = null;
-let selectedShape = null;
-let modelScale = 1;
-
-const objects = new THREE.Group();
-scene.add(objects);
-
-const silver = new THREE.MeshStandardMaterial({
-  color: 0xe0e0e0,
-  metalness: 0.25,
-  roughness: 0.3
+const silver=new THREE.MeshStandardMaterial({
+  color:0xdce1e7,
+  metalness:0.92,
+  roughness:0.19,
+  envMapIntensity:1.8
 });
 
-/* Load the instrument. */
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;
+controls.dampingFactor=0.075;
+controls.zoomToCursor=true;
+controls.screenSpacePanning=true;
+controls.minDistance=0.3;
+controls.maxDistance=30;
+controls.touches={
+  ONE:THREE.TOUCH.ROTATE,
+  TWO:THREE.TOUCH.DOLLY_PAN
+};
+
+let moved=false;
+controls.addEventListener("start",()=>{moved=true});
+
+let rig=null,slider=null,ready=false;
+let W=6,H=2.5,fly=null,shape=null,obj=null;
+const v3=new THREE.Vector3();
+
 new GLTFLoader().load(
-  "./verniercaliper.glb",
-  gltf => {
-    caliper = gltf.scene;
+  MODEL,
+  gltf=>{
+    try{setup(gltf.scene)}
+    catch(e){
+      console.error(e);
+      say("Model setup problem: "+e.message);
+    }
+  },
+  undefined,
+  e=>{
+    console.error(e);
+    say("Model failed to load. Check verniercaliper.glb.");
+  }
+);
 
-    caliper.traverse(part => {
-  const name = part.name.toLowerCase();
+function fixRuler(mesh){
+  mesh.updateWorldMatrix(true,false);
+  const mw=mesh.matrixWorld;
+  const inv=mw.clone().invert();
+  const p=mesh.geometry.attributes.position;
+  const uv=mesh.geometry.attributes.uv;
+  if(!uv)return;
 
-  if (
-    name === "circle_4" ||
-    name === "object_12"
-  ) {
-    part.visible = false;
+  for(let i=0;i<p.count;i++){
+    v3.fromBufferAttribute(p,i).applyMatrix4(mw);
+    v3.x=Math.max(v3.x,ZERO_X);
+    uv.setX(
+      i,
+      (35+RULER_PX_PER_MM*MM_PER_UNIT*(v3.x-ZERO_X))/1024
+    );
+    v3.applyMatrix4(inv);
+    p.setXYZ(i,v3.x,v3.y,v3.z);
   }
 
-  if (name === "cube004_2") {
-    movableJaw = part;
-  }
-});
+  p.needsUpdate=true;
+  uv.needsUpdate=true;
+  mesh.geometry.computeBoundingBox();
+  mesh.geometry.computeBoundingSphere();
+}
 
-    caliper.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(caliper);
-    const size = box.getSize(new THREE.Vector3());
-    const largest = Math.max(size.x, size.y, size.z);
+function setup(model){
+  rig=new THREE.Group();
+  rig.add(model);
+  scene.add(rig);
+  rig.updateMatrixWorld(true);
 
-    if (!largest) {
-      $("status").textContent = "Invalid caliper model dimensions.";
+  const parts=[];
+  model.traverse(o=>{
+    if(!o.name)return;
+    const n=o.name.toLowerCase();
+
+    if(HIDE.includes(n)){
+      o.visible=false;
       return;
     }
 
-    modelScale = 6.5 / largest;
-    caliper.scale.setScalar(modelScale);
-    caliper.updateMatrixWorld(true);
+    if(MOVING.includes(n))parts.push(o);
 
-    const scaledBox = new THREE.Box3().setFromObject(caliper);
-    caliper.position.sub(scaledBox.getCenter(new THREE.Vector3()));
-    scene.add(caliper);
-    caliper.updateMatrixWorld(true);
+    if(o.isMesh){
+      o.frustumCulled=false;
+      if(o.material){
+        const mats=Array.isArray(o.material)?o.material:[o.material];
+        mats.forEach(m=>{
+          m.side=THREE.DoubleSide;
+          if(m.map)m.map.colorSpace=THREE.SRGBColorSpace;
+          m.needsUpdate=true;
+        });
+      }
+    }
+  });
 
-    if (movableJaw) originalJawX = movableJaw.position.x;
-
-    const finalBox = new THREE.Box3().setFromObject(caliper);
-    const center = finalBox.getCenter(new THREE.Vector3());
-    const finalSize = finalBox.getSize(new THREE.Vector3());
-
-    controls.target.copy(center);
-
-const maxDimension = Math.max(
-  finalSize.x,
-  finalSize.y,
-  finalSize.z
-);
-
-const distance =
-  (maxDimension / 2) /
-  Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-
-camera.position.set(
-  center.x,
-  center.y + maxDimension * 0.12,
-  center.z + distance * 1.8
-);
-
-camera.lookAt(center);
-camera.near = 0.01;
-camera.far = 1000;
-camera.updateProjectionMatrix();
-controls.update();
-
-    removeObject();
-    updateJaw();
-    $("status").textContent = movableJaw
-      ? "Caliper loaded. Choose an object."
-      : "Caliper loaded, but its moving jaw was not identified.";
-  },
-  undefined,
-  error => {
-    console.error(error);
-    $("status").textContent =
-      "Model failed to load. Check verniercaliper.glb filename.";
+  if(parts.length<MOVING.length){
+    throw new Error("Moving jaw parts not found. Check the GLB mesh names.");
   }
-);
 
-/* Jaw control. Travel is provisional until the model is calibrated. */
-function updateJaw() {
-  const value = Number($("jawSlider").value);
-  $("jawValue").textContent = value + "%";
+  const ruler=model.getObjectByName("Object_4");
+  if(ruler)fixRuler(ruler);
 
-  if (movableJaw) {
-    movableJaw.position.x = originalJawX + value / 100 * 2;
-    movableJaw.updateMatrixWorld(true);
-  }
+  slider=new THREE.Group();
+  rig.add(slider);
+  parts.forEach(o=>slider.attach(o));
+
+  const fit=new THREE.Box3();
+  model.traverse(o=>{
+    if(!o.isMesh)return;
+    for(let p=o;p;p=p.parent){
+      if(!p.visible)return;
+    }
+    fit.union(new THREE.Box3().setFromObject(o));
+  });
+
+  if(fit.isEmpty())throw new Error("The model contains no visible meshes.");
+
+  const size=fit.getSize(new THREE.Vector3());
+  W=size.x;
+  H=size.y;
+
+  rig.position.copy(fit.getCenter(new THREE.Vector3())).negate();
+  rig.updateMatrixWorld(true);
+
+  ready=true;
+  viewFull(true);
+  say("Caliper ready. Use Zoom on Jaws or select an object.");
 }
-$("jawSlider").addEventListener("input", updateJaw);
-$("closeJawsButton").onclick = () => {
-  $("jawSlider").value = 0;
-  updateJaw();
-};
-$("openJawsButton").onclick = () => {
-  $("jawSlider").value = 100;
-  updateJaw();
-};
 
-/* Object menu. */
-$("otherObjectsButton").onclick = () => {
-  const menu = $("objectMenu");
-  menu.classList.toggle("open");
-  $("menuArrow").textContent = menu.classList.contains("open") ? "⌃" : "⌄";
-};
+function dist(span){
+  return span/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
+}
 
-$("objectMenu").querySelectorAll("[data-shape]").forEach(button => {
-  button.onclick = () => {
-    addObject(button.dataset.shape);
-    $("objectMenu").classList.remove("open");
-    $("menuArrow").textContent = "⌄";
-  };
-});
-
-/* Hide dimension fields that do not apply to the selected shape. */
-function setFields(shape) {
-  ["fieldA", "fieldB", "fieldC"].forEach(id => $(id).style.display = "block");
-  ["dimensionA", "dimensionB", "dimensionC"].forEach(id => $(id).disabled = false);
-
-  if (shape === "sphere" || shape === "cube") {
-    $("labelA").textContent = shape === "sphere" ? "Diameter (mm)" : "Side (mm)";
-    $("fieldB").style.display = "none";
-    $("fieldC").style.display = "none";
-    $("dimensionB").disabled = true;
-    $("dimensionC").disabled = true;
-  } else if (shape === "cylinder" || shape === "cone") {
-    $("labelA").textContent = "Diameter (mm)";
-    $("labelB").textContent = "Height (mm)";
-    $("fieldC").style.display = "none";
-    $("dimensionC").disabled = true;
-  } else {
-    $("labelA").textContent = "Length (mm)";
-    $("labelB").textContent = "Width (mm)";
-    $("labelC").textContent = "Height (mm)";
+function go(pos,tgt,instant=false){
+  if(instant){
+    camera.position.copy(pos);
+    controls.target.copy(tgt);
+    controls.update();
+    fly=null;
+  }else{
+    fly={
+      t0:performance.now(),
+      p0:camera.position.clone(),
+      q0:controls.target.clone(),
+      p1:pos.clone(),
+      q1:tgt.clone()
+    };
   }
 }
 
-function dimensions() {
-  const d = {
-    a: Number($("dimensionA").value),
-    b: Number($("dimensionB").value),
-    c: Number($("dimensionC").value)
-  };
-
-  const required = selectedShape === "sphere" || selectedShape === "cube"
-    ? [d.a]
-    : selectedShape === "cylinder" || selectedShape === "cone"
-      ? [d.a, d.b]
-      : [d.a, d.b, d.c];
-
-  if (required.some(v => !Number.isFinite(v) || v <= 0 || v > 100)) {
-    $("status").textContent = "Enter dimensions between 1 and 100 mm.";
-    return null;
-  }
-  return d;
-}
-
-/* Geometry uses millimetres converted to provisional model units. */
-const MM = 0.018;
-
-function geometry(shape, d) {
-  const a = d.a * MM, b = d.b * MM, c = d.c * MM;
-
-  switch (shape) {
-    case "sphere": return new THREE.SphereGeometry(a / 2, 48, 32);
-    case "cube": return new THREE.BoxGeometry(a, a, a);
-    case "cylinder": return new THREE.CylinderGeometry(a / 2, a / 2, b, 48);
-    case "cone": return new THREE.ConeGeometry(a / 2, b, 48);
-    case "cuboid": return new THREE.BoxGeometry(a, b, c);
-    default: throw new Error("Unknown object shape: " + shape);
-  }
-}
-
-/*
- * NOTE: this is a provisional placement, not a verified jaw-tip
- * measurement. The GLB jaw geometry must be calibrated for accuracy.
- */
-function objectPosition() {
-  caliper.updateMatrixWorld(true);
-
-  const box = new THREE.Box3().setFromObject(caliper);
-  const size = box.getSize(new THREE.Vector3());
-
-  // Temporary position near the centre of the instrument.
-  return new THREE.Vector3(
-    box.min.x + size.x * 0.30,
-    box.min.y + size.y * 0.50,
-    box.min.z + size.z * 0.50
+function viewFull(instant=false){
+  if(!ready)return;
+  const span=Math.max(W/camera.aspect,H)*1.12;
+  go(
+    new THREE.Vector3(0,0,dist(span)+0.15),
+    new THREE.Vector3(0,0,0),
+    instant
   );
 }
 
-function addObject(shape) {
-  if (!caliper) {
-    $("status").textContent = "Wait for the caliper to load.";
+function viewJaws(){
+  if(!ready)return;
+
+  const gap=slider.position.x;
+  const c=rig.localToWorld(
+    new THREE.Vector3(FACE_X+gap/2,-0.55,FACE_Z)
+  );
+
+  const d=dist(Math.max(1.6,(gap+0.65)/camera.aspect));
+  go(new THREE.Vector3(c.x,c.y+0.08,c.z+d),c);
+}
+
+$("fitButton").onclick=()=>viewFull();
+$("jawsButton").onclick=viewJaws;
+
+$("jawSlider").addEventListener("input",()=>{
+  const val=Number($("jawSlider").value);
+  $("jawValue").textContent=val+"%";
+
+  if(ready&&!obj){
+    slider.position.x=(val/100)*TRAVEL;
+  }
+});
+
+const SHAPES={
+  sphere:{
+    f:["Diameter"],max:60,
+    geo:a=>new THREE.SphereGeometry(a/2,64,48),
+    h:a=>a
+  },
+  cube:{
+    f:["Side"],max:100,
+    geo:a=>new THREE.BoxGeometry(a,a,a),
+    h:a=>a
+  },
+  cylinder:{
+    f:["Diameter","Height"],max:100,
+    geo:(a,b)=>new THREE.CylinderGeometry(a/2,a/2,b,64),
+    h:(a,b)=>b
+  },
+  cuboid:{
+    f:["Length","Width","Height"],max:100,
+    geo:(a,b,c)=>new THREE.BoxGeometry(a,c,b),
+    h:(a,b,c)=>c
+  },
+  cone:{
+    f:["Base diameter","Height"],max:100,
+    geo:(a,b)=>new THREE.ConeGeometry(a/2,b,64),
+    h:(a,b)=>b
+  }
+};
+
+function readDims(){
+  const sh=SHAPES[shape];
+  const d=sh.f.map((_,i)=>parseFloat($("dim"+"ABC"[i]).value));
+  const limit=Math.min(sh.max,Math.floor(TRAVEL*MM_PER_UNIT));
+
+  if(d.some(x=>!Number.isFinite(x)||x<1||x>sh.max)){
+    say("Enter sizes between 1 and "+sh.max+" mm.");
+    return null;
+  }
+
+  if(d[0]>limit){
+    say("The jaws open to "+limit+" mm at most. Reduce the first size.");
+    return null;
+  }
+
+  return d;
+}
+
+function place(){
+  if(!obj||!shape)return;
+
+  const d=readDims();
+  if(!d)return;
+
+  const sh=SHAPES[shape];
+  const u=1/MM_PER_UNIT;
+  const v=d.map(x=>x*u);
+
+  obj.geometry.dispose();
+  obj.geometry=sh.geo(...v);
+
+  slider.position.x=v[0];
+
+  const h=sh.h(...v);
+  const top=shape==="cone"?ROOT_Y-0.05:ROOT_Y;
+  let y=top-h/2;
+
+  if(shape==="sphere")y=Math.max(y,-1.05);
+
+  obj.rotation.set(0,0,shape==="cone"?Math.PI:0);
+  obj.position.set(FACE_X+v[0]/2,y,FACE_Z);
+
+  $("measurementAnswer").textContent=
+    sh.f.map((n,i)=>n+": "+d[i]+" mm").join(", ");
+
+  say("Object placed between the jaws. Size: "+d[0]+" mm.");
+}
+
+function selectShape(s){
+  if(!ready){
+    say("Wait for the caliper to load.");
     return;
   }
 
-  selectedShape = shape;
-  const d = dimensions();
-  if (!d) return;
+  shape=s;
 
-  removeObject(false);
-  selectedShape = shape;
+  if(!obj){
+    obj=new THREE.Mesh(new THREE.BufferGeometry(),silver);
+    obj.material=silver;
+    rig.add(obj);
+  }
 
-  selectedObject = new THREE.Mesh(geometry(shape, d), silver);
-  selectedObject.name = shape + "Object";
-  selectedObject.position.copy(objectPosition());
-  objects.add(selectedObject);
+  document.querySelectorAll("[data-shape]").forEach(b=>{
+    b.classList.toggle("active",b.dataset.shape===s);
+  });
 
-  $("selectedObjectName").textContent =
-    "Selected: " + shape[0].toUpperCase() + shape.slice(1);
-  $("jawControlPanel").style.display = "none";
-  $("measurement").classList.remove("show");
-  setFields(shape);
-  $("status").textContent = "Object added. Enter dimensions and press Update Dimensions.";
+  "ABC".split("").forEach((k,i)=>{
+    const on=i<SHAPES[s].f.length;
+    $("field"+k).hidden=!on;
+
+    if(on){
+      $("label"+k).textContent=SHAPES[s].f[i]+" (mm)";
+    }
+  });
+
+  $("objectPanel").hidden=false;
+  $("jawControlPanel").hidden=true;
+
+  place();
 }
 
-/* Update shape size and display entered dimensions. */
-$("updateButton").onclick = () => {
-  if (!selectedObject || !selectedShape) {
-    $("status").textContent = "Choose an object first.";
-    return;
-  }
+function removeObject(){
+  if(!obj)return;
 
-  const d = dimensions();
-  if (!d) return;
+  rig.remove(obj);
+  obj.geometry.dispose();
+  obj=null;
+  shape=null;
 
-  selectedObject.geometry.dispose();
-  selectedObject.geometry = geometry(selectedShape, d);
+  document.querySelectorAll("[data-shape]").forEach(b=>{
+    b.classList.remove("active");
+  });
 
-  let answer;
-  if (selectedShape === "sphere") answer = `${d.a} mm diameter`;
-  else if (selectedShape === "cube") answer = `${d.a} mm side`;
-  else if (selectedShape === "cylinder" || selectedShape === "cone") {
-    answer = `${d.a} mm diameter × ${d.b} mm height`;
-  } else {
-    answer = `${d.a} × ${d.b} × ${d.c} mm`;
-  }
+  $("objectPanel").hidden=true;
+  $("jawControlPanel").hidden=false;
 
-  $("measurementDetails").textContent = "Entered object dimensions:";
-  $("measurementAnswer").textContent = answer;
-  $("measurement").classList.add("show");
-  $("status").textContent = "Object dimensions updated.";
-};
+  slider.position.x=Math.min(TRAVEL,Math.max(0,slider.position.x));
 
-/* Remove current object and restore the controls. */
-function removeObject(showStatus = false) {
-  if (selectedObject) {
-    objects.remove(selectedObject);
-    selectedObject.geometry.dispose();
-  }
+  const pct=Math.round(slider.position.x/TRAVEL*100);
+  $("jawSlider").value=pct;
+  $("jawValue").textContent=pct+"%";
 
-  selectedObject = null;
-  selectedShape = null;
-
-  $("selectedObjectName").textContent = "No object selected";
-  $("measurement").classList.remove("show");
-  $("jawControlPanel").style.display = "block";
-
-  ["fieldA", "fieldB", "fieldC"].forEach(id => $(id).style.display = "block");
-  ["dimensionA", "dimensionB", "dimensionC"].forEach(id => $(id).disabled = false);
-
-  $("labelA").textContent = "Diameter (mm)";
-  $("labelB").textContent = "Width (mm)";
-  $("labelC").textContent = "Height (mm)";
-
-  if (showStatus) $("status").textContent = "Object removed.";
+  say("Object removed. Move the jaws freely.");
 }
 
-$("removeButton").onclick = () => removeObject(true);
+document.querySelectorAll("[data-shape]").forEach(b=>{
+  b.onclick=()=>selectShape(b.dataset.shape);
+});
 
-$("resetButton").onclick = () => {
-  removeObject();
-  $("dimensionA").value = 20;
-  $("dimensionB").value = 20;
-  $("dimensionC").value = 20;
-  $("jawSlider").value = 0;
-  updateJaw();
-  $("status").textContent = "Reset complete.";
-};
+["dimA","dimB","dimC"].forEach(id=>{
+  $(id).addEventListener("input",place);
+});
 
-/* Resize and render. */
-function resize() {
-  const w = viewer.clientWidth, h = viewer.clientHeight;
-  if (!w || !h) return;
-  camera.aspect = w / h;
+$("removeButton").onclick=removeObject;
+
+new ResizeObserver(()=>{
+  const w=viewer.clientWidth;
+  const h=viewer.clientHeight;
+
+  if(!w||!h)return;
+
+  camera.aspect=w/h;
   camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-}
-window.addEventListener("resize", resize);
-resize();
+  renderer.setSize(w,h,false);
 
-function animate() {
+  if(ready&&!moved)viewFull(true);
+}).observe(viewer);
+
+function animate(now){
   requestAnimationFrame(animate);
+
+  if(fly){
+    const k=Math.min(1,(now-fly.t0)/450);
+    const e=k*k*(3-2*k);
+
+    camera.position.lerpVectors(fly.p0,fly.p1,e);
+    controls.target.lerpVectors(fly.q0,fly.q1,e);
+
+    if(k===1)fly=null;
+  }
+
   controls.update();
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
-animate();
+
+requestAnimationFrame(animate);
