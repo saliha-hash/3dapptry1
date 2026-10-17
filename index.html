@@ -32,10 +32,12 @@
       letter-spacing: 0.5px;
     }
 
+    /* 3D CALIPER VIEWER */
+
     #viewer {
       position: relative;
       width: 100%;
-      height: clamp(300px, 58vw, 490px);
+      height: clamp(300px, 65vw, 520px);
       overflow: hidden;
       background: #000;
       border: 1px solid #303030;
@@ -49,6 +51,53 @@
       height: 100%;
     }
 
+    /* JAW SLIDER SPACE OUTSIDE THE VIEWER */
+
+    #jawControlPanel {
+      width: 100%;
+      margin: 12px 0 0;
+      padding: 14px;
+      background: #101010;
+      border: 1px solid #303030;
+      border-radius: 10px;
+    }
+
+    #jawControlPanel[hidden] {
+      display: none !important;
+    }
+
+    .jaw-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    #jawValue {
+      color: #bdbdbd;
+      font-size: 12px;
+      font-weight: normal;
+    }
+
+    #jawSlider {
+      display: block;
+      width: 100%;
+      margin: 12px 0;
+      accent-color: #e7e7e7;
+      cursor: pointer;
+    }
+
+    .jaw-help {
+      color: #929292;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* STATUS */
+
     .status {
       margin: 9px 2px;
       color: #a7a7a7;
@@ -56,6 +105,8 @@
       text-align: center;
       min-height: 15px;
     }
+
+    /* SECTIONS */
 
     .section {
       margin-top: 17px;
@@ -66,6 +117,8 @@
       font-size: 16px;
       font-weight: 600;
     }
+
+    /* OBJECT DROPDOWN */
 
     .dropdown {
       position: relative;
@@ -125,6 +178,8 @@
       background: #292929;
     }
 
+    /* DIMENSIONS */
+
     .panel {
       padding: 14px;
       background: #101010;
@@ -162,6 +217,8 @@
       font-size: 12px;
     }
 
+    /* BUTTONS */
+
     .button-row {
       display: flex;
       flex-wrap: wrap;
@@ -188,6 +245,12 @@
       font-weight: 600;
     }
 
+    .action-button:active {
+      opacity: 0.8;
+    }
+
+    /* MEASUREMENT RESULT */
+
     .measurement {
       margin-top: 13px;
       padding: 12px;
@@ -198,6 +261,8 @@
       font-size: 14px;
       overflow-wrap: anywhere;
     }
+
+    /* FORMULA */
 
     .formula {
       margin-top: 10px;
@@ -230,6 +295,10 @@
       .dimension-grid {
         gap: 6px;
       }
+
+      .action-button {
+        min-width: 85px;
+      }
     }
   </style>
 
@@ -244,98 +313,231 @@
 
 <body>
   <main class="app">
+
     <h1>Vernier Caliper</h1>
 
-    <div id="viewer" aria-label="Interactive 3D Vernier caliper"></div>
-    <div class="status" id="status">Loading 3D model...</div>
+    <!-- 3D MODEL -->
+    <div
+      id="viewer"
+      aria-label="Interactive 3D Vernier caliper">
+    </div>
 
+    <!-- JAW SLIDER: OUTSIDE THE VIEWER -->
+    <div id="jawControlPanel" hidden>
+      <div class="jaw-heading">
+        <span>Move Caliper Jaws</span>
+        <span id="jawValue">Closed</span>
+      </div>
+
+      <input
+        id="jawSlider"
+        type="range"
+        min="0"
+        max="100"
+        value="0"
+        step="1"
+        aria-label="Adjust Vernier caliper jaw opening">
+
+      <div class="jaw-help">
+        Move the slider to open or close the jaws.
+        Select an object to hide this control.
+      </div>
+    </div>
+
+    <div class="status" id="status">
+      Loading 3D model...
+    </div>
+
+    <!-- OBJECT SELECTION -->
     <section class="section">
       <div class="section-title">Objects</div>
 
       <div class="dropdown">
-        <button id="otherObjectsButton" type="button" aria-expanded="false">
-          <span id="selectedObjectName">Other Objects — Sphere</span>
+        <button
+          id="otherObjectsButton"
+          type="button"
+          aria-expanded="false">
+
+          <span id="selectedObjectName">
+            Other Objects — Sphere
+          </span>
+
           <span id="menuArrow">⌄</span>
         </button>
 
         <div id="objectMenu">
-          <button class="object-option" type="button" data-shape="sphere">Sphere</button>
-          <button class="object-option" type="button" data-shape="cube">Cube</button>
-          <button class="object-option" type="button" data-shape="cylinder">Cylinder</button>
-          <button class="object-option" type="button" data-shape="cuboid">Cuboid</button>
-          <button class="object-option" type="button" data-shape="cone">Cone</button>
+          <button
+            class="object-option"
+            type="button"
+            data-shape="sphere">
+            Sphere
+          </button>
+
+          <button
+            class="object-option"
+            type="button"
+            data-shape="cube">
+            Cube
+          </button>
+
+          <button
+            class="object-option"
+            type="button"
+            data-shape="cylinder">
+            Cylinder
+          </button>
+
+          <button
+            class="object-option"
+            type="button"
+            data-shape="cuboid">
+            Cuboid
+          </button>
+
+          <button
+            class="object-option"
+            type="button"
+            data-shape="cone">
+            Cone
+          </button>
         </div>
       </div>
     </section>
 
+    <!-- OBJECT DIMENSIONS -->
     <section class="section">
       <div class="section-title">Object Dimensions</div>
 
       <div class="panel">
+
         <div class="dimension-grid">
+
           <div class="dimension-field">
-            <label id="labelA" for="dimensionA">Diameter</label>
-            <input id="dimensionA" type="number" min="1" max="200" step="1" value="20">
+            <label id="labelA" for="dimensionA">
+              Diameter
+            </label>
+
+            <input
+              id="dimensionA"
+              type="number"
+              min="1"
+              max="200"
+              step="1"
+              value="20">
           </div>
 
           <div class="dimension-field">
-            <label id="labelB" for="dimensionB">Height</label>
-            <input id="dimensionB" type="number" min="1" max="200" step="1" value="20">
+            <label id="labelB" for="dimensionB">
+              Height
+            </label>
+
+            <input
+              id="dimensionB"
+              type="number"
+              min="1"
+              max="200"
+              step="1"
+              value="20">
           </div>
 
           <div class="dimension-field">
-            <label id="labelC" for="dimensionC">Depth</label>
-            <input id="dimensionC" type="number" min="1" max="200" step="1" value="20">
+            <label id="labelC" for="dimensionC">
+              Depth
+            </label>
+
+            <input
+              id="dimensionC"
+              type="number"
+              min="1"
+              max="200"
+              step="1"
+              value="20">
           </div>
+
         </div>
 
-        <div class="unit">Dimensions are in millimetres (mm).</div>
+        <div class="unit">
+          Dimensions are in millimetres (mm).
+        </div>
 
         <div class="button-row">
-          <button class="action-button primary" id="updateButton" type="button">
+          <button
+            class="action-button primary"
+            id="updateButton"
+            type="button">
             Update Size
           </button>
 
-          <button class="action-button" id="removeButton" type="button">
+          <button
+            class="action-button"
+            id="removeButton"
+            type="button">
             Remove Object
           </button>
 
-          <button class="action-button" id="resetButton" type="button">
+          <button
+            class="action-button"
+            id="resetButton"
+            type="button">
             Reset View
           </button>
         </div>
 
-        <div class="measurement" id="measurement" aria-live="polite">
+        <div
+          class="measurement"
+          id="measurement"
+          aria-live="polite">
+
           Selected object: Sphere<br>
           Enter dimensions and select Update Size.
+
         </div>
       </div>
     </section>
 
+    <!-- VERNIER CALIPER FORMULA -->
     <section class="section">
-      <div class="section-title">Vernier Caliper Formula</div>
+      <div class="section-title">
+        Vernier Caliper Formula
+      </div>
 
       <div class="formula">
-        <strong>Reading = Main Scale Reading + (Vernier Coincidence × Least Count)</strong>
+        <strong>
+          Reading = Main Scale Reading +
+          (Vernier Coincidence × Least Count)
+        </strong>
+
+        <br><br>
+
+        <strong>
+          Least Count = Value of 1 main-scale division
+          ÷ Number of Vernier divisions
+        </strong>
+
+        <br><br>
+
+        Example: Main scale = 12 mm,
+        Vernier coincidence = 4,
+        least count = 0.1 mm.
+
         <br>
-        <br>
-        <strong>Least Count = Value of 1 main-scale division ÷ Number of Vernier divisions</strong>
-        <br>
-        <br>
-        Example: Main scale = 12 mm, Vernier coincidence = 4, least count = 0.1 mm.
-        <br>
-        Reading = 12 + (4 × 0.1) = <strong>12.4 mm</strong>.
-        <br>
-        <br>
-        This example is a calculation, not a live measurement of the 3D model.
+
+        Reading = 12 + (4 × 0.1) =
+        <strong>12.4 mm</strong>.
+
+        <br><br>
+
+        This example is a calculation, not a live
+        measurement of the 3D model.
       </div>
     </section>
 
     <div class="coming-soon">
       More scientific instruments coming soon.
     </div>
+
   </main>
 
-  <script type="module" src="./script.js?v=11"></script>
+  <script type="module" src="./script.js?v=12"></script>
 </body>
-            </html>
+  </html>
