@@ -2,95 +2,154 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#000000">
 <title>Vernier Calliper</title>
 
 <style>
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 :root{
   color-scheme:dark;
-  --bg:#080808;
-  --panel:#141414;
-  --border:#383838;
-  --text:#eee;
-  --muted:#aaa;
-  --silver:#c8c8c8
+  --bg:#000;
+  --panel:#08090b;
+  --line:#858b93;
+  --soft:#343a42;
+  --text:#f1f3f5;
+  --muted:#a6adb5;
+  --silver:#c7cdd3;
+  --accent:#d8e0e8
 }
+html{background:#000}
 body{
-  margin:0;padding:12px;background:var(--bg);
-  color:var(--text);font-family:Arial,sans-serif
+  margin:0;padding:10px;
+  background:#000;color:var(--text);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Arial,sans-serif
 }
-.app{max-width:1050px;margin:auto}
-header{text-align:center;margin:8px 0 20px}
+.app{width:100%;max-width:1100px;margin:0 auto}
+header{text-align:center;margin:4px 0 15px}
 h1{
-  margin:0;font:italic 600 clamp(30px,5vw,44px)
-  Georgia,"Times New Roman",serif;
-  letter-spacing:1px;color:#dedede
+  margin:0;
+  font:italic 600 clamp(30px,5.5vw,44px)/1.2
+  "Palatino Linotype","Book Antiqua",Georgia,serif;
+  letter-spacing:1.1px;color:#e4e7eb;
+  text-shadow:0 1px 12px #ffffff12
 }
-.heading-line{
-  width:60px;height:1px;background:#777;margin:12px auto
+.stage{
+  position:relative;
+  width:100%;overflow:hidden;
+  border:1px solid #9299a1;
+  border-radius:5px;
+  background:#000;
+  box-shadow:0 0 0 1px #ffffff08,inset 0 0 24px #ffffff04
 }
-.viewer-box{
-  overflow:hidden;border:1px solid var(--border);
-  border-radius:10px;background:#050505
+#viewer{
+  width:100%;height:clamp(330px,62vw,540px);
+  background:#000;touch-action:none
 }
-#viewer{width:100%;height:420px;touch-action:none}
 #viewer canvas{display:block;width:100%;height:100%}
-.panel{
-  margin-top:14px;padding:16px;background:var(--panel);
-  border:1px solid var(--border);border-radius:10px
+.view-tools{
+  display:flex;justify-content:flex-end;
+  flex-wrap:wrap;gap:7px;margin:10px 0 0
 }
-h2{font-size:17px;margin:0 0 12px}
-.description{
-  color:var(--muted);font-size:13px;line-height:1.6;
-  margin:0 0 13px
+button{
+  min-height:35px;padding:7px 12px;
+  border:1px solid #747b84;border-radius:5px;
+  background:#111316;color:#e7eaed;
+  font:inherit;font-size:12px;
+  cursor:pointer;transition:background .15s,border-color .15s
+}
+button:hover{background:#252a30;border-color:#d1d6dc}
+button:focus-visible,input:focus-visible{
+  outline:2px solid #d9e1e9;outline-offset:2px
+}
+.view-tools button{min-width:100px}
+.panel{
+  margin-top:12px;padding:13px;
+  background:#070809;
+  border:1px solid #666d76;border-radius:5px
+}
+h2{
+  margin:0 0 8px;color:#e7eaed;
+  font-size:15px;font-weight:600;letter-spacing:.15px
+}
+.note{
+  margin:0 0 10px;color:var(--muted);
+  font-size:12px;line-height:1.55
 }
 .slider-row{
-  display:flex;align-items:center;gap:9px;
-  justify-content:center;color:#ccc;font-size:12px
+  display:flex;align-items:center;gap:8px;
+  color:#c7cdd3;font-size:11px
 }
 #jawSlider{
-  flex:1;min-width:0;max-width:290px;
-  accent-color:#c8c8c8
+  flex:1;min-width:0;height:20px;
+  accent-color:#cbd2d9;cursor:pointer
 }
-#jawValue{min-width:34px;text-align:right}
-.button-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
-button{
-  padding:10px 13px;min-height:37px;border:1px solid #484848;
-  border-radius:7px;background:#252525;color:#eee;
-  font-size:13px;cursor:pointer
+#jawValue{
+  min-width:32px;text-align:right;
+  color:#e5e8eb;font-variant-numeric:tabular-nums
 }
-button:hover{background:#383838}
-.primary{background:#333;border-color:#666}
-#objectMenu{
-  display:none;grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;margin-top:9px;padding:9px;
-  border:1px solid #383838;border-radius:8px
+.shapes{display:flex;flex-wrap:wrap;gap:7px}
+.shapes button{
+  min-height:34px;padding:6px 12px;
+  border-color:#505760;background:#111316
 }
-#objectMenu.open{display:grid}
-#objectMenu button{text-align:left}
-#selectedObjectName{font-size:13px;color:#ccc;margin:12px 0}
-.field-grid{
+.shapes button.active{
+  background:#303840;border-color:#d0d7df;
+  color:#fff;box-shadow:inset 0 0 0 1px #ffffff12
+}
+.fields{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:12px;margin-top:15px
+  gap:9px;margin-top:12px
 }
-label{display:block;font-size:12px;color:#ccc;margin-bottom:7px}
+label{
+  display:block;margin-bottom:5px;
+  font-size:11px;color:#c7cdd3
+}
 input[type=number]{
-  width:100%;min-width:0;padding:10px;background:#080808;
-  color:#eee;border:1px solid #444;border-radius:7px
+  display:block;width:100%;min-width:0;
+  padding:9px;background:#08090b;color:#f1f3f5;
+  border:1px solid #555d66;border-radius:4px;
+  font:inherit;font-size:13px
 }
-#status{font-size:12px;line-height:1.5;color:#bbb;margin-top:13px}
-#measurement{
-  display:none;margin-top:14px;padding:14px;
-  border:1px solid #444;border-radius:8px;background:#090909
+input[type=number]:focus{border-color:#cbd2da}
+.result{
+  margin-top:11px;padding:10px 12px;
+  border:1px solid #5e656e;border-radius:4px;
+  background:#030405
 }
-#measurement.show{display:block}
-.answer{font-size:20px;font-weight:bold;margin-top:8px}
-.formula{font-size:14px;line-height:1.9;color:#ddd}
-@media(max-width:600px){
-  #viewer{height:340px}
-  .panel{padding:13px}
-  .field-grid{grid-template-columns:1fr}
+.result b{
+  display:block;margin-bottom:3px;
+  color:#aeb5bd;font-size:11px;font-weight:500
+}
+#measurementAnswer{
+  color:#f0f2f4;font-size:16px;font-weight:600;
+  overflow-wrap:anywhere
+}
+#removeButton{margin-top:10px}
+#status{
+  margin-top:10px;color:#b8c0c8;
+  font-size:11px;line-height:1.5;overflow-wrap:anywhere
+}
+.formula{font-size:13px;line-height:1.9;color:#dfe3e7}
+.formula strong{color:#f0f2f4}
+@media(min-width:800px){
+  body{padding:14px}
+  .panel{padding:15px}
+}
+@media(max-width:520px){
+  body{padding:7px}
+  header{margin:5px 0 12px}
+  #viewer{height:370px}
+  .panel{padding:11px}
+  .fields{gap:7px}
+  input[type=number]{padding:8px 6px}
+  .shapes{gap:6px}
+  .shapes button{padding:6px 10px}
+  .view-tools button{flex:1}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important}
 }
 </style>
 
@@ -106,86 +165,79 @@ input[type=number]{
 
 <body>
 <main class="app">
-  <header>
-    <h1>Vernier Calliper</h1>
-    <div class="heading-line"></div>
-  </header>
 
-  <div class="viewer-box"><div id="viewer"></div></div>
+<header>
+  <h1>Vernier Calliper</h1>
+</header>
 
-  <section class="panel" id="jawControlPanel">
-    <h2>Jaw Opening</h2>
-    <p class="description">Move the slider to adjust the jaws.</p>
-    <div class="slider-row">
-      <span>Closed</span>
-      <input id="jawSlider" type="range" min="0" max="100" value="0">
-      <span>Open</span><span id="jawValue">0%</span>
-    </div>
-    <div class="button-row">
-      <button id="closeJawsButton">Close Jaws</button>
-      <button id="openJawsButton" class="primary">Open Fully</button>
-    </div>
-  </section>
+<div class="stage">
+  <div id="viewer"></div>
+</div>
 
-  <section class="panel">
-    <h2>Measure an Object</h2>
-    <p class="description">Choose a shape, then enter its dimensions in millimetres.</p>
-    <button id="otherObjectsButton" class="primary">
-      + Add Object <span id="menuArrow">⌄</span>
-    </button>
+<div class="view-tools">
+  <button id="fitButton">Full View</button>
+  <button id="jawsButton">Zoom on Jaws</button>
+</div>
 
-    <div id="objectMenu">
-      <button data-shape="sphere">Sphere</button>
-      <button data-shape="cube">Cube</button>
-      <button data-shape="cylinder">Cylinder</button>
-      <button data-shape="cuboid">Cuboid</button>
-      <button data-shape="cone">Cone</button>
-    </div>
+<section class="panel" id="jawControlPanel">
+  <h2>Jaw Opening</h2>
+  <p class="note">Slide to open or close the jaws. Drag to rotate the view and pinch to zoom.</p>
+  <div class="slider-row">
+    <span>Closed</span>
+    <input id="jawSlider" type="range" min="0" max="100" value="0" aria-label="Jaw opening">
+    <span>Open</span>
+    <span id="jawValue">0%</span>
+  </div>
+</section>
 
-    <p id="selectedObjectName">No object selected</p>
+<section class="panel">
+  <h2>Measure an Object</h2>
+  <p class="note">Choose an object and enter its dimensions in millimetres.</p>
 
-    <div class="field-grid">
+  <div class="shapes">
+    <button data-shape="sphere">Sphere</button>
+    <button data-shape="cube">Cube</button>
+    <button data-shape="cylinder">Cylinder</button>
+    <button data-shape="cuboid">Cuboid</button>
+    <button data-shape="cone">Cone</button>
+  </div>
+
+  <div id="objectPanel" hidden>
+    <div class="fields">
       <div id="fieldA">
-        <label id="labelA" for="dimensionA">Diameter (mm)</label>
-        <input id="dimensionA" type="number" min="1" max="100" value="20">
+        <label id="labelA" for="dimA">Diameter (mm)</label>
+        <input id="dimA" type="number" min="1" max="100" step="any" value="20" inputmode="decimal">
       </div>
       <div id="fieldB">
-        <label id="labelB" for="dimensionB">Width (mm)</label>
-        <input id="dimensionB" type="number" min="1" max="100" value="20">
+        <label id="labelB" for="dimB">Height (mm)</label>
+        <input id="dimB" type="number" min="1" max="100" step="any" value="20" inputmode="decimal">
       </div>
       <div id="fieldC">
-        <label id="labelC" for="dimensionC">Height (mm)</label>
-        <input id="dimensionC" type="number" min="1" max="100" value="20">
+        <label id="labelC" for="dimC">Height (mm)</label>
+        <input id="dimC" type="number" min="1" max="100" step="any" value="20" inputmode="decimal">
       </div>
     </div>
 
-    <div class="button-row">
-      <button id="updateButton" class="primary">Update Dimensions</button>
-      <button id="removeButton">Remove Object</button>
-      <button id="resetButton">Reset</button>
+    <div class="result">
+      <b>Object in the jaws</b>
+      <div id="measurementAnswer"></div>
     </div>
 
-    <div id="status" role="status">Loading model...</div>
+    <button id="removeButton">Remove Object</button>
+  </div>
 
-    <div id="measurement">
-      <h2>Object Dimensions</h2>
-      <div id="measurementDetails"></div>
-      <div id="measurementAnswer" class="answer"></div>
-    </div>
-  </section>
+  <div id="status" role="status" aria-live="polite">Loading model...</div>
+</section>
 
-  <section class="panel">
-    <h2>Vernier Calliper Formula</h2>
-    <div class="formula">
-      <strong>Reading = Main Scale Reading + Vernier Scale Reading</strong><br>
-      Vernier Scale Reading = Coinciding Division × Least Count
-    </div>
-    <p class="description" style="margin-top:10px">
-      Object dimensions are entered values, not automatically detected scale readings.
-    </p>
-  </section>
+<section class="panel">
+  <h2>Vernier Calliper Formula</h2>
+  <div class="formula">
+    <strong>Reading = Main Scale Reading + Vernier Scale Reading</strong><br>
+    Vernier Scale Reading = Coinciding Division × Least Count
+  </div>
+</section>
+
 </main>
-
-<script type="module" src="./script.js?v=15"></script>
+<script type="module" src="./script.js?v=18"></script>
 </body>
-      </html>
+          </html>
