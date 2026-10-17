@@ -8,31 +8,55 @@ import { GLTFLoader } from
 
 
 /* =========================================
-   TEMPORARY VERNIER CALIPER MODEL INSPECTOR
-   No default sphere. No jaw slider.
+   VERNIER CALIPER — INTERACTIVE MODEL
 ========================================= */
 
 const viewer = document.getElementById("viewer");
 const status = document.getElementById("status");
 
+const objectButton = document.getElementById("otherObjectsButton");
+const objectMenu = document.getElementById("objectMenu");
+const selectedObjectName = document.getElementById("selectedObjectName");
+const menuArrow = document.getElementById("menuArrow");
+
+const dimensionA = document.getElementById("dimensionA");
+const dimensionB = document.getElementById("dimensionB");
+const dimensionC = document.getElementById("dimensionC");
+
+const labelA = document.getElementById("labelA");
+const labelB = document.getElementById("labelB");
+const labelC = document.getElementById("labelC");
+
+const updateButton = document.getElementById("updateButton");
+const removeButton = document.getElementById("removeButton");
+const resetButton = document.getElementById("resetButton");
+const measurement = document.getElementById("measurement");
+
+const jawPanel = document.getElementById("jawControlPanel");
+const jawSlider = document.getElementById("jawSlider");
+const jawValue = document.getElementById("jawValue");
+
+
 if (!viewer) {
-  throw new Error("The #viewer element was not found.");
+  throw new Error("The viewer element is missing.");
 }
 
 
-/* ---------- SCENE ---------- */
+/* =========================================
+   SCENE
+========================================= */
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(
-  40,
+  38,
   viewer.clientWidth / viewer.clientHeight,
   0.01,
   1000
 );
 
-camera.position.set(0, 0, 9);
+camera.position.set(0, 0, 10);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -42,474 +66,532 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(viewer.clientWidth, viewer.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.setClearColor(0x000000, 1);
 
 viewer.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
+const controls = new OrbitControls(
+  camera,
+  renderer.domElement
+);
+
 controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+controls.dampingFactor = 0.07;
 controls.enablePan = false;
 controls.minDistance = 2;
-controls.maxDistance = 25;
+controls.maxDistance = 22;
+controls.target.set(0, 0, 0);
 
 scene.add(new THREE.AmbientLight(0xffffff, 2));
 
-const light1 = new THREE.DirectionalLight(0xffffff, 3);
-light1.position.set(4, 5, 8);
+const light1 = new THREE.DirectionalLight(0xffffff, 2.5);
+light1.position.set(3, 5, 8);
 scene.add(light1);
 
 const light2 = new THREE.DirectionalLight(0xffffff, 1.5);
-light2.position.set(-5, 2, -4);
+light2.position.set(-5, 2, -5);
 scene.add(light2);
 
 
-/* ---------- INSPECTOR STATE ---------- */
+/* =========================================
+   MODEL STATE
+========================================= */
 
-let model = null;
-let mixer = null;
-let animationClip = null;
-let animationAction = null;
+let caliper = null;
+let movableNode = null;
+let selectedObject = null;
+let selectedShape = null;
 
-const meshEntries = [];
-const nodeNames = new Set();
+let initialJawPosition = null;
+let modelScale = 1;
 
-
-/* ---------- INSPECTOR UI ---------- */
-
-const inspector = document.createElement("section");
-
-inspector.id = "modelInspector";
-
-inspector.style.cssText = `
-  margin-top: 14px;
-  padding: 14px;
-  background: #101010;
-  color: #eeeeee;
-  border: 1px solid #444;
-  border-radius: 10px;
-  font-family: Arial, sans-serif;
-`;
-
-inspector.innerHTML = `
-  <h2 style="font-size:18px;margin:0 0 8px">
-    Model Inspector
-  </h2>
-
-  <p style="font-size:13px;line-height:1.6;color:#bbb">
-    Temporarily hide individual parts to identify the black circle
-    and the moving jaw components.
-  </p>
-
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
-    <button id="inspectClosed" type="button">Closed Pose</button>
-    <button id="inspectOpen" type="button">Open Pose</button>
-    <button id="inspectAll" type="button">Show All Parts</button>
-    <button id="inspectReport" type="button">Copy Part Report</button>
-  </div>
-
-  <div id="animationInfo"
-    style="font-size:12px;color:#aaa;line-height:1.7;margin-bottom:12px">
-    Checking model...
-  </div>
-
-  <div id="meshList"></div>
-
-  <pre id="modelReport"
-    style="white-space:pre-wrap;overflow-wrap:anywhere;
-    font-size:11px;line-height:1.5;color:#bcd7ff;
-    background:#050505;padding:10px;border-radius:6px"></pre>
-`;
-
-viewer.insertAdjacentElement("afterend", inspector);
+const objects = new THREE.Group();
+scene.add(objects);
 
 
-/* ---------- INSPECTOR BUTTON STYLE ---------- */
+/*
+ * These values control the estimated movement.
+ * The model has no animation, so the slider moves
+ * the selected node directly.
+ *
+ * Adjust MAX_JAW_TRAVEL after verifying the
+ * actual jaw movement.
+ */
 
-const inspectorStyle = document.createElement("style");
-
-inspectorStyle.textContent = `
-  #modelInspector button {
-    padding: 10px 12px;
-    color: white;
-    background: #202020;
-    border: 1px solid #555;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-
-  #modelInspector button:active {
-    background: #333;
-  }
-
-  .mesh-entry {
-    padding: 10px 0;
-    border-top: 1px solid #292929;
-  }
-
-  .mesh-entry label {
-    display: flex;
-    align-items: flex-start;
-    gap: 9px;
-    font-size: 13px;
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-  }
-
-  .mesh-entry input {
-    margin-top: 3px;
-    accent-color: #1687ff;
-    flex-shrink: 0;
-  }
-
-  .mesh-details {
-    margin: 5px 0 0 25px;
-    color: #999;
-    font-size: 11px;
-    line-height: 1.6;
-    overflow-wrap: anywhere;
-  }
-`;
-
-document.head.appendChild(inspectorStyle);
+const MAX_JAW_TRAVEL = 1.5;
 
 
-/* ---------- UTILITIES ---------- */
+/* =========================================
+   SLIDER PANEL
+========================================= */
 
-function getPath(object) {
-  const names = [];
-  let current = object;
-
-  while (current && current !== model) {
-    names.unshift(current.name || "(unnamed)");
-    current = current.parent;
-  }
-
-  return names.join(" / ");
+if (jawPanel) {
+  jawPanel.hidden = false;
 }
 
-function getBounds(object) {
-  object.updateWorldMatrix(true, false);
+function setJawSliderVisibility() {
+  if (!jawPanel) return;
 
-  const box = new THREE.Box3().setFromObject(object);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-
-  return { center, size };
+  jawPanel.hidden = Boolean(selectedObject);
 }
 
-function number(value) {
-  return Number(value).toFixed(3);
-}
-
-function formatBounds(object) {
-  const { center, size } = getBounds(object);
-
-  return (
-    `Center: (${number(center.x)}, ${number(center.y)}, ${number(center.z)})` +
-    `<br>Size: (${number(size.x)}, ${number(size.y)}, ${number(size.z)})`
-  );
-}
-
-
-/* ---------- MODEL REPORT ---------- */
-
-function buildReport() {
-  if (!model) return "";
-
-  const lines = [];
-
-  lines.push("VERNIER CALIPER MODEL REPORT");
-  lines.push("============================");
-
-  lines.push("");
-  lines.push("MESHES:");
-
-  meshEntries.forEach((entry, index) => {
-    const { center, size } = getBounds(entry.mesh);
-
-    lines.push(
-      `${index + 1}. ${entry.path}` +
-      ` | visible=${entry.mesh.visible}` +
-      ` | center=(${number(center.x)}, ${number(center.y)}, ${number(center.z)})` +
-      ` | size=(${number(size.x)}, ${number(size.y)}, ${number(size.z)})` +
-      ` | material=${entry.materialNames}`
-    );
-  });
-
-  lines.push("");
-  lines.push("ANIMATION CLIPS:");
-
-  if (!model.animations || model.animations.length === 0) {
-    lines.push("No animations found.");
-  } else {
-    model.animations.forEach((clip, index) => {
-      lines.push(
-        `${index + 1}. ${clip.name || "(unnamed)"}` +
-        ` | duration=${number(clip.duration)} seconds`
-      );
-
-      clip.tracks.forEach((track) => {
-        lines.push(`   TRACK: ${track.name}`);
-      });
-    });
-  }
-
-  return lines.join("\n");
-}
-
-function refreshReport() {
-  const report = document.getElementById("modelReport");
-  if (report) report.textContent = buildReport();
-}
-
-
-/* ---------- LIST EVERY MESH ---------- */
-
-function createMeshList() {
-  const list = document.getElementById("meshList");
-  list.innerHTML = "";
-
-  meshEntries.forEach((entry, index) => {
-    const row = document.createElement("div");
-    row.className = "mesh-entry";
-
-    const label = document.createElement("label");
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = entry.mesh.visible;
-
-    const title = document.createElement("span");
-    title.textContent =
-      `${index + 1}. ${entry.path}`;
-
-    label.appendChild(checkbox);
-    label.appendChild(title);
-
-    const details = document.createElement("div");
-    details.className = "mesh-details";
-    details.innerHTML =
-      formatBounds(entry.mesh) +
-      `<br>Material: ${entry.materialNames}`;
-
-    checkbox.addEventListener("change", () => {
-      entry.mesh.visible = checkbox.checked;
-
-      details.innerHTML =
-        formatBounds(entry.mesh) +
-        `<br>Material: ${entry.materialNames}`;
-
-      refreshReport();
-    });
-
-    row.appendChild(label);
-    row.appendChild(details);
-    list.appendChild(row);
-  });
-}
-
-
-/* ---------- ANIMATION POSES ---------- */
-
-function showAnimationPose(progress) {
-  if (!animationAction || !animationClip || !mixer) {
-    document.getElementById("animationInfo").textContent =
-      "No animation is available in this model.";
-
+function updateJawSlider() {
+  if (!jawSlider || !movableNode || initialJawPosition === null) {
     return;
   }
 
-  animationAction.paused = false;
+  const progress = Number(jawSlider.value) / 100;
 
-  animationAction.time =
-    THREE.MathUtils.clamp(progress, 0, 1) *
-    animationClip.duration;
+  /*
+   * Move the node horizontally.
+   * The negative direction is an initial estimate.
+   */
 
-  mixer.update(0);
+  movableNode.position.x =
+    initialJawPosition - (MAX_JAW_TRAVEL * progress / modelScale);
 
-  animationAction.paused = true;
+  if (jawValue) {
+    jawValue.textContent = `${Math.round(progress * 100)}% open`;
+  }
 
-  document.getElementById("animationInfo").textContent =
-    `Showing animation at ${Math.round(progress * 100)}% ` +
-    `(${number(animationAction.time)} of ` +
-    `${number(animationClip.duration)} seconds).`;
+  movableNode.updateMatrixWorld(true);
 
-  // Refresh bounds after the animation has moved the parts.
-  createMeshList();
-  refreshReport();
+  if (selectedObject) {
+    positionObjectInWorkingArea();
+  }
 }
 
-document.getElementById("inspectClosed").addEventListener(
-  "click",
-  () => showAnimationPose(0)
-);
-
-document.getElementById("inspectOpen").addEventListener(
-  "click",
-  () => showAnimationPose(1)
-);
-
-document.getElementById("inspectAll").addEventListener(
-  "click",
-  () => {
-    meshEntries.forEach((entry) => {
-      entry.mesh.visible = true;
-    });
-
-    createMeshList();
-    refreshReport();
-  }
-);
-
-document.getElementById("inspectReport").addEventListener(
-  "click",
-  async () => {
-    const report = buildReport();
-
-    try {
-      await navigator.clipboard.writeText(report);
-
-      document.getElementById("animationInfo").textContent =
-        "Report copied. You can paste it into this chat.";
-    } catch (error) {
-      // The report remains visible below if clipboard access fails.
-      document.getElementById("modelReport").textContent = report;
-
-      document.getElementById("animationInfo").textContent =
-        "Copy is unavailable. The report is displayed below.";
-    }
-  }
-);
+if (jawSlider) {
+  jawSlider.addEventListener("input", updateJawSlider);
+}
 
 
-/* ---------- LOAD MODEL ---------- */
+/* =========================================
+   LOAD CALIPER MODEL
+========================================= */
 
-function loadModel() {
+function loadCaliper() {
   const loader = new GLTFLoader();
 
   loader.load(
     "./verniercaliper.glb",
 
     (gltf) => {
-      model = gltf.scene;
+      caliper = gltf.scene;
 
-      model.traverse((object) => {
-        if (object.name) nodeNames.add(object.name);
+      /*
+       * Find the movable node using the name from
+       * the model-inspection report.
+       */
 
-        if (!object.isMesh) return;
+      movableNode = caliper.getObjectByName("Cube004_2");
 
-        object.frustumCulled = false;
+      /*
+       * Hide the unwanted circle by its identified
+       * mesh name. Do not hide the entire parent.
+       */
 
-        if (object.material) {
-          const materials = Array.isArray(object.material)
-            ? object.material
-            : [object.material];
+      const unwantedCircle =
+        caliper.getObjectByName("Circle_4") ||
+        caliper.getObjectByName("Object_12");
+
+      if (unwantedCircle) {
+        unwantedCircle.visible = false;
+      }
+
+      caliper.traverse((child) => {
+        if (!child.isMesh) return;
+
+        child.frustumCulled = false;
+
+        if (child.material) {
+          const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material];
 
           materials.forEach((material) => {
             material.side = THREE.DoubleSide;
             material.needsUpdate = true;
           });
         }
-
-        const materials = object.material
-          ? (
-              Array.isArray(object.material)
-                ? object.material
-                : [object.material]
-            )
-          : [];
-
-        meshEntries.push({
-          mesh: object,
-          path: getPath(object),
-          materialNames: materials
-            .map((material) => material.name || "(unnamed)")
-            .join(", ") || "(none)"
-        });
       });
 
-      // Scale and center the model without changing its mesh geometry.
-      model.updateMatrixWorld(true);
+      /*
+       * Scale and center the model.
+       */
 
-      const initialBounds = new THREE.Box3().setFromObject(model);
-      const initialSize = initialBounds.getSize(new THREE.Vector3());
-      const initialCenter = initialBounds.getCenter(new THREE.Vector3());
+      caliper.updateMatrixWorld(true);
 
-      const maxDimension = Math.max(
-        initialSize.x,
-        initialSize.y,
-        initialSize.z
+      const bounds = new THREE.Box3().setFromObject(caliper);
+      const size = bounds.getSize(new THREE.Vector3());
+      const center = bounds.getCenter(new THREE.Vector3());
+
+      const largestDimension = Math.max(
+        size.x,
+        size.y,
+        size.z
       );
 
-      if (!Number.isFinite(maxDimension) || maxDimension === 0) {
-        throw new Error("The loaded model has no measurable geometry.");
+      if (!Number.isFinite(largestDimension) || largestDimension <= 0) {
+        if (status) {
+          status.textContent = "The caliper model has invalid dimensions.";
+        }
+        return;
       }
 
-      model.position.sub(initialCenter);
-      model.scale.multiplyScalar(6.5 / maxDimension);
-      model.updateMatrixWorld(true);
+      modelScale = 6.5 / largestDimension;
 
-      const centeredBounds = new THREE.Box3().setFromObject(model);
-      const centeredPosition =
-        centeredBounds.getCenter(new THREE.Vector3());
+      caliper.position.sub(center);
+      caliper.scale.setScalar(modelScale);
+      caliper.updateMatrixWorld(true);
 
-      model.position.sub(centeredPosition);
-      model.updateMatrixWorld(true);
+      /*
+       * Recenter after scaling.
+       */
 
-      scene.add(model);
+      const scaledBounds = new THREE.Box3().setFromObject(caliper);
+      const scaledCenter =
+        scaledBounds.getCenter(new THREE.Vector3());
 
-      // Fit the model in the viewer.
-      camera.position.set(0, 0.25, 9);
+      caliper.position.sub(scaledCenter);
+      caliper.updateMatrixWorld(true);
+
+      scene.add(caliper);
+
+      /*
+       * Save the starting position of the movable node.
+       */
+
+      if (movableNode) {
+        initialJawPosition = movableNode.position.x;
+      }
+
+      if (jawSlider) {
+        jawSlider.value = "0";
+      }
+
+      updateJawSlider();
+
+      /*
+       * Fit the caliper into the viewer.
+       */
+
+      camera.position.set(0, 0.2, 9);
       controls.target.set(0, 0, 0);
       controls.update();
 
-      if (gltf.animations && gltf.animations.length > 0) {
-        animationClip = gltf.animations[0];
-        mixer = new THREE.AnimationMixer(model);
-
-        animationAction = mixer.clipAction(animationClip);
-        animationAction.setLoop(THREE.LoopOnce, 1);
-        animationAction.clampWhenFinished = true;
-        animationAction.play();
-        animationAction.paused = true;
-        animationAction.time = 0;
-
-        mixer.update(0);
-      }
-
-      createMeshList();
-      refreshReport();
-
-      const info = document.getElementById("animationInfo");
-
-      info.textContent =
-        `${meshEntries.length} meshes found. ` +
-        `${gltf.animations.length} animation clips found. ` +
-        "Use Closed Pose and Open Pose to compare jaw positions.";
+      setJawSliderVisibility();
 
       if (status) {
-        status.textContent =
-          "Inspector ready. Toggle parts below to identify the black circle.";
+        status.textContent = movableNode
+          ? "Caliper loaded. Use the slider to test jaw movement."
+          : "Caliper loaded, but the movable part was not found.";
       }
     },
 
     undefined,
 
     (error) => {
-      console.error("Model loading error:", error);
+      console.error("Caliper loading error:", error);
 
       if (status) {
         status.textContent =
-          "Could not load the model. Check verniercaliper.glb.";
+          "Model failed to load. Check the GLB filename.";
       }
     }
   );
 }
 
 
-/* ---------- RESIZE ---------- */
+/* =========================================
+   OBJECT GEOMETRY
+========================================= */
+
+function createGeometry(shape, a, b, c) {
+  /*
+   * Convert millimetres into approximate model units.
+   */
+
+  const scale = 0.035;
+
+  const A = a * scale;
+  const B = b * scale;
+  const C = c * scale;
+
+  switch (shape) {
+    case "sphere":
+      return new THREE.SphereGeometry(
+        A / 2,
+        40,
+        28
+      );
+
+    case "cube":
+      return new THREE.BoxGeometry(A, A, A);
+
+    case "cuboid":
+      return new THREE.BoxGeometry(A, B, C);
+
+    case "cylinder":
+      return new THREE.CylinderGeometry(
+        A / 2,
+        A / 2,
+        B,
+        40
+      );
+
+    case "cone":
+      return new THREE.ConeGeometry(
+        A / 2,
+        B,
+        40
+      );
+
+    default:
+      return new THREE.SphereGeometry(A / 2, 40, 28);
+  }
+}
+
+
+function getDimensions() {
+  const a = Number(dimensionA.value);
+  const b = Number(dimensionB.value);
+  const c = Number(dimensionC.value);
+
+  if (
+    !Number.isFinite(a) ||
+    !Number.isFinite(b) ||
+    !Number.isFinite(c) ||
+    a < 1 || b < 1 || c < 1 ||
+    a > 200 || b > 200 || c > 200
+  ) {
+    if (measurement) {
+      measurement.textContent =
+        "Enter dimensions between 1 mm and 200 mm.";
+    }
+
+    return null;
+  }
+
+  return { a, b, c };
+}
+
+
+/* =========================================
+   OBJECT LABELS
+========================================= */
+
+function updateDimensionLabels(shape) {
+  const labels = {
+    sphere: ["Diameter", "Diameter", "Diameter"],
+    cube: ["Side", "Side", "Side"],
+    cylinder: ["Diameter", "Height", "Diameter"],
+    cuboid: ["Length", "Height", "Depth"],
+    cone: ["Diameter", "Height", "Diameter"]
+  };
+
+  const names = labels[shape] || labels.sphere;
+
+  labelA.textContent = names[0];
+  labelB.textContent = names[1];
+  labelC.textContent = names[2];
+
+  if (shape === "sphere" || shape === "cube") {
+    dimensionB.value = dimensionA.value;
+    dimensionC.value = dimensionA.value;
+  }
+
+  if (shape === "cylinder" || shape === "cone") {
+    dimensionC.value = dimensionA.value;
+  }
+}
+
+
+/* =========================================
+   POSITION OBJECT
+========================================= */
+
+function positionObjectInWorkingArea() {
+  if (!selectedObject || !caliper) return;
+
+  /*
+   * Estimated working position based on the model
+   * bounds. This must be refined if the model's
+   * jaw opening is not centered here.
+   */
+
+  selectedObject.position.set(-1.0, 0.15, 0.95);
+}
+
+
+/* =========================================
+   ADD / REPLACE OBJECT
+========================================= */
+
+function addObject(shape) {
+  if (!caliper) {
+    if (status) {
+      status.textContent = "Wait for the caliper to load.";
+    }
+    return;
+  }
+
+  const dimensions = getDimensions();
+
+  if (!dimensions) return;
+
+  if (selectedObject) {
+    objects.remove(selectedObject);
+
+    selectedObject.geometry.dispose();
+
+    if (selectedObject.material) {
+      selectedObject.material.dispose();
+    }
+
+    selectedObject = null;
+  }
+
+  const geometry = createGeometry(
+    shape,
+    dimensions.a,
+    dimensions.b,
+    dimensions.c
+  );
+
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x1687ff,
+    metalness: 0.15,
+    roughness: 0.35
+  });
+
+  selectedObject = new THREE.Mesh(geometry, material);
+  selectedObject.name = `measuring-object-${shape}`;
+
+  objects.add(selectedObject);
+
+  selectedShape = shape;
+
+  positionObjectInWorkingArea();
+
+  selectedObjectName.textContent =
+    `Selected Object — ${shape.charAt(0).toUpperCase()}${shape.slice(1)}`;
+
+  measurement.innerHTML =
+    `Selected object: ${shape}<br>` +
+    `Dimensions: ${dimensions.a} × ${dimensions.b} × ${dimensions.c} mm`;
+
+  setJawSliderVisibility();
+}
+
+
+/* =========================================
+   DROPDOWN EVENTS
+========================================= */
+
+objectButton.addEventListener("click", () => {
+  const isOpen = objectMenu.classList.toggle("open");
+
+  objectButton.setAttribute("aria-expanded", String(isOpen));
+  menuArrow.textContent = isOpen ? "⌃" : "⌄";
+});
+
+document.querySelectorAll(".object-option").forEach((button) => {
+  button.addEventListener("click", () => {
+    const shape = button.dataset.shape;
+
+    updateDimensionLabels(shape);
+
+    objectMenu.classList.remove("open");
+    objectButton.setAttribute("aria-expanded", "false");
+    menuArrow.textContent = "⌄";
+
+    addObject(shape);
+  });
+});
+
+
+/* =========================================
+   UPDATE OBJECT SIZE
+========================================= */
+
+updateButton.addEventListener("click", () => {
+  if (!selectedShape) {
+    if (measurement) {
+      measurement.textContent =
+        "Choose an object from the dropdown first.";
+    }
+    return;
+  }
+
+  const dimensions = getDimensions();
+
+  if (!dimensions) return;
+
+  if (selectedObject) {
+    selectedObject.geometry.dispose();
+
+    selectedObject.geometry = createGeometry(
+      selectedShape,
+      dimensions.a,
+      dimensions.b,
+      dimensions.c
+    );
+
+    positionObjectInWorkingArea();
+
+    measurement.innerHTML =
+      `Selected object: ${selectedShape}<br>` +
+      `Updated dimensions: ${dimensions.a} × ` +
+      `${dimensions.b} × ${dimensions.c} mm`;
+  }
+});
+
+
+/* =========================================
+   REMOVE OBJECT
+========================================= */
+
+removeButton.addEventListener("click", () => {
+  if (selectedObject) {
+    objects.remove(selectedObject);
+
+    selectedObject.geometry.dispose();
+    selectedObject.material.dispose();
+
+    selectedObject = null;
+  }
+
+  selectedShape = null;
+
+  selectedObjectName.textContent = "Other Objects — Select Shape";
+
+  measurement.innerHTML =
+    "No object selected.<br>" +
+    "Choose a shape from the Objects menu to begin.";
+
+  setJawSliderVisibility();
+});
+
+
+/* =========================================
+   RESET VIEW
+========================================= */
+
+resetButton.addEventListener("click", () => {
+  camera.position.set(0, 0.2, 9);
+  controls.target.set(0, 0, 0);
+  controls.update();
+
+  if (jawSlider) {
+    jawSlider.value = "0";
+    updateJawSlider();
+  }
+});
+
+
+/* =========================================
+   RESIZE
+========================================= */
 
 window.addEventListener("resize", () => {
   const width = viewer.clientWidth;
@@ -524,7 +606,9 @@ window.addEventListener("resize", () => {
 });
 
 
-/* ---------- RENDER ---------- */
+/* =========================================
+   RENDER
+========================================= */
 
 function animate() {
   requestAnimationFrame(animate);
@@ -533,5 +617,5 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-loadModel();
+loadCaliper();
 animate();
