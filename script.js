@@ -12,6 +12,7 @@ const ROOT_Y=-0.17;
 const TRAVEL=3.47;
 const MOVING=["cube004_2","cylinder_3"];
 const HIDE=["circle_4","cylinder001_5"];
+
 const $=id=>document.getElementById(id);
 const say=t=>{$("status").textContent=t};
 const viewer=$("viewer");
@@ -20,7 +21,12 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x000000);
 
 const camera=new THREE.PerspectiveCamera(30,1,0.01,1000);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+
+const renderer=new THREE.WebGLRenderer({
+  antialias:true,
+  alpha:false
+});
+
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -29,6 +35,7 @@ renderer.setClearColor(0x000000,1);
 renderer.domElement.style.display="block";
 viewer.appendChild(renderer.domElement);
 
+// Lighting for a more realistic metal appearance.
 scene.add(new THREE.HemisphereLight(0xd5dce5,0x17191d,1.15));
 
 function light(color,intensity,x,y,z){
@@ -43,15 +50,26 @@ light(0xffffff,1.8,0,4,-5);
 light(0x8293a8,0.65,5,-2,-3);
 
 const pmrem=new THREE.PMREMGenerator(renderer);
-const environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
-scene.environment=environment;
+scene.environment=pmrem.fromScene(
+  new RoomEnvironment(),
+  0.04
+).texture;
 pmrem.dispose();
 
-const silver=new THREE.MeshStandardMaterial({
-  color:0xaeb7c1,
-  metalness:0.88,
-  roughness:0.27,
-  envMapIntensity:1.25
+// Shiny metallic finish for the objects.
+const metalObject=new THREE.MeshStandardMaterial({
+  color:0xc5cbd2,
+  metalness:0.78,
+  roughness:0.22,
+  envMapIntensity:1.5
+});
+
+// Sphere retains a softer finish.
+const sphereMaterial=new THREE.MeshStandardMaterial({
+  color:0xb8c0c9,
+  metalness:0.25,
+  roughness:0.38,
+  envMapIntensity:1.0
 });
 
 const controls=new OrbitControls(camera,renderer.domElement);
@@ -75,8 +93,9 @@ let W=6,H=2.5,fly=null,shape=null,obj=null;
 new GLTFLoader().load(
   MODEL,
   gltf=>{
-    try{setup(gltf.scene)}
-    catch(e){
+    try{
+      setup(gltf.scene);
+    }catch(e){
       console.error(e);
       say("Model setup problem: "+e.message);
     }
@@ -97,7 +116,6 @@ function setup(model){
   const parts=[];
 
   model.traverse(o=>{
-    if(!o.name)return;
     const n=o.name.toLowerCase();
 
     if(HIDE.includes(n)){
@@ -105,7 +123,9 @@ function setup(model){
       return;
     }
 
-    if(MOVING.includes(n))parts.push(o);
+    if(MOVING.includes(n)){
+      parts.push(o);
+    }
 
     if(o.isMesh){
       o.frustumCulled=false;
@@ -131,11 +151,12 @@ function setup(model){
     throw new Error("Moving jaw parts not found. Check the GLB mesh names.");
   }
 
-  // Preserve the original Sketchfab ruler texture.
-  // No UV remapping is applied, preventing changes to its markings.
+  // Preserve the original ruler markings and texture.
+  // Do not remap the ruler UV coordinates.
 
   slider=new THREE.Group();
   rig.add(slider);
+
   parts.forEach(o=>slider.attach(o));
 
   const fit=new THREE.Box3();
@@ -158,16 +179,27 @@ function setup(model){
   W=size.x;
   H=size.y;
 
-  rig.position.copy(fit.getCenter(new THREE.Vector3())).negate();
+  rig.position.copy(
+    fit.getCenter(new THREE.Vector3())
+  ).negate();
+
   rig.updateMatrixWorld(true);
 
   ready=true;
+
+  // Start with jaws at zero opening.
+  slider.position.x=0;
+  $("jawSlider").value=0;
+  $("jawValue").textContent="0%";
+
   viewFull(true);
-  say("Caliper ready. Use Zoom on Jaws or select an object.");
+  say("Caliper ready. Select an object or move the jaws.");
 }
 
 function dist(span){
-  return span/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
+  return span/(2*Math.tan(
+    THREE.MathUtils.degToRad(camera.fov/2)
+  ));
 }
 
 function go(pos,tgt,instant=false){
@@ -205,19 +237,28 @@ function viewJaws(){
   const gap=slider.position.x;
 
   const c=rig.localToWorld(
-    new THREE.Vector3(FACE_X+gap/2,-0.55,FACE_Z)
+    new THREE.Vector3(
+      FACE_X+gap/2,
+      -0.55,
+      FACE_Z
+    )
   );
 
   const d=dist(Math.max(1.6,(gap+0.65)/camera.aspect));
 
-  go(new THREE.Vector3(c.x,c.y+0.08,c.z+d),c);
+  go(
+    new THREE.Vector3(c.x,c.y+0.08,c.z+d),
+    c
+  );
 }
 
 $("fitButton").onclick=()=>viewFull();
 $("jawsButton").onclick=viewJaws;
 
+// Jaw slider works when no object is selected.
 $("jawSlider").addEventListener("input",()=>{
   const val=Number($("jawSlider").value);
+
   $("jawValue").textContent=val+"%";
 
   if(ready&&!obj){
@@ -260,9 +301,15 @@ const SHAPES={
 
 function readDims(){
   const sh=SHAPES[shape];
-  const d=sh.f.map((_,i)=>parseFloat($("dim"+"ABC"[i]).value));
 
-  const limit=Math.min(sh.max,Math.floor(TRAVEL*MM_PER_UNIT));
+  const d=sh.f.map((_,i)=>
+    parseFloat($("dim"+"ABC"[i]).value)
+  );
+
+  const limit=Math.min(
+    sh.max,
+    Math.floor(TRAVEL*MM_PER_UNIT)
+  );
 
   if(d.some(x=>!Number.isFinite(x)||x<1||x>sh.max)){
     say("Enter sizes between 1 and "+sh.max+" mm.");
@@ -290,10 +337,19 @@ function place(){
   obj.geometry.dispose();
   obj.geometry=sh.geo(...v);
 
+  // Use shiny metal for all objects except the sphere.
+  obj.material=shape==="sphere"
+    ?sphereMaterial
+    :metalObject;
+
+  // Match the opening to the measured object's diameter/width.
   slider.position.x=v[0];
 
   const h=sh.h(...v);
-  const top=shape==="cone"?ROOT_Y-0.05:ROOT_Y;
+
+  const top=shape==="cone"
+    ?ROOT_Y-0.05
+    :ROOT_Y;
 
   let y=top-h/2;
 
@@ -301,7 +357,11 @@ function place(){
     y=Math.max(y,-1.05);
   }
 
-  obj.rotation.set(0,0,shape==="cone"?Math.PI:0);
+  obj.rotation.set(
+    0,
+    0,
+    shape==="cone"?Math.PI:0
+  );
 
   obj.position.set(
     FACE_X+v[0]/2,
@@ -324,8 +384,11 @@ function selectShape(s){
   shape=s;
 
   if(!obj){
-    obj=new THREE.Mesh(new THREE.BufferGeometry(),silver);
-    obj.material=silver;
+    obj=new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      metalObject
+    );
+
     rig.add(obj);
   }
 
@@ -339,7 +402,8 @@ function selectShape(s){
     $("field"+k).hidden=!on;
 
     if(on){
-      $("label"+k).textContent=SHAPES[s].f[i]+" (mm)";
+      $("label"+k).textContent=
+        SHAPES[s].f[i]+" (mm)";
     }
   });
 
@@ -364,9 +428,14 @@ function removeObject(){
   $("objectPanel").hidden=true;
   $("jawControlPanel").hidden=false;
 
-  slider.position.x=Math.min(TRAVEL,Math.max(0,slider.position.x));
+  slider.position.x=Math.min(
+    TRAVEL,
+    Math.max(0,slider.position.x)
+  );
 
-  const pct=Math.round(slider.position.x/TRAVEL*100);
+  const pct=Math.round(
+    slider.position.x/TRAVEL*100
+  );
 
   $("jawSlider").value=pct;
   $("jawValue").textContent=pct+"%";
@@ -406,8 +475,17 @@ function animate(now){
     const k=Math.min(1,(now-fly.t0)/450);
     const e=k*k*(3-2*k);
 
-    camera.position.lerpVectors(fly.p0,fly.p1,e);
-    controls.target.lerpVectors(fly.q0,fly.q1,e);
+    camera.position.lerpVectors(
+      fly.p0,
+      fly.p1,
+      e
+    );
+
+    controls.target.lerpVectors(
+      fly.q0,
+      fly.q1,
+      e
+    );
 
     if(k===1)fly=null;
   }
