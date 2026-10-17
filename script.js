@@ -95,13 +95,28 @@ new GLTFLoader().load(
     const finalSize = finalBox.getSize(new THREE.Vector3());
 
     controls.target.copy(center);
-    camera.position.set(
-      center.x,
-      center.y + finalSize.y * 0.55,
-      center.z + finalSize.z * 2.4
-    );
-    camera.lookAt(center);
-    controls.update();
+
+const maxDimension = Math.max(
+  finalSize.x,
+  finalSize.y,
+  finalSize.z
+);
+
+const distance =
+  (maxDimension / 2) /
+  Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+
+camera.position.set(
+  center.x,
+  center.y + maxDimension * 0.12,
+  center.z + distance * 1.8
+);
+
+camera.lookAt(center);
+camera.near = 0.01;
+camera.far = 1000;
+camera.updateProjectionMatrix();
+controls.update();
 
     removeObject();
     updateJaw();
