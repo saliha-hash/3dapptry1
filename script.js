@@ -43,9 +43,9 @@ const objects = new THREE.Group();
 scene.add(objects);
 
 const silver = new THREE.MeshStandardMaterial({
-  color: 0xd8d8d8,
-  metalness: 0.45,
-  roughness: 0.24
+  color: 0xe0e0e0,
+  metalness: 0.25,
+  roughness: 0.3
 });
 
 /* Load the instrument. */
@@ -55,11 +55,19 @@ new GLTFLoader().load(
     caliper = gltf.scene;
 
     caliper.traverse(part => {
-      if (["Circle_4", "Object_12"].includes(part.name)) {
-        part.visible = false;
-      }
-      if (part.name === "Cube004_2") movableJaw = part;
-    });
+  const name = part.name.toLowerCase();
+
+  if (
+    name === "circle_4" ||
+    name === "object_12"
+  ) {
+    part.visible = false;
+  }
+
+  if (name === "cube004_2") {
+    movableJaw = part;
+  }
+});
 
     caliper.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(caliper);
@@ -209,7 +217,16 @@ function geometry(shape, d) {
  */
 function objectPosition() {
   caliper.updateMatrixWorld(true);
-  return caliper.localToWorld(new THREE.Vector3(-2.75, -0.02, 0.67));
+
+  const box = new THREE.Box3().setFromObject(caliper);
+  const size = box.getSize(new THREE.Vector3());
+
+  // Temporary position near the centre of the instrument.
+  return new THREE.Vector3(
+    box.min.x + size.x * 0.30,
+    box.min.y + size.y * 0.50,
+    box.min.z + size.z * 0.50
+  );
 }
 
 function addObject(shape) {
